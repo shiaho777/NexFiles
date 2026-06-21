@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<resources>
+
+    <style name="Theme.NexFiles.color_primary.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.color_primary.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.color_primary.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.material_red.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.material_red.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.material_red.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.material_pink.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.material_pink.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.material_pink.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.material_purple.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.material_purple.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.material_purple.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.material_deep_purple.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.material_deep_purple.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.material_deep_purple.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.material_indigo.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.material_indigo.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.material_indigo.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.material_blue.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.material_blue.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.material_blue.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.material_light_blue.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.material_light_blue.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.material_light_blue.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.material_cyan.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.material_cyan.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.material_cyan.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.material_teal.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.material_teal.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.material_teal.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.material_green.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.material_green.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.material_green.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.material_light_green.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.material_light_green.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.material_light_green.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.material_lime.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.material_lime.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.material_lime.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.material_yellow.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.material_yellow.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.material_yellow.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.material_amber.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.material_amber.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.material_amber.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.material_orange.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.material_orange.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.material_orange.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.material_deep_orange.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.material_deep_orange.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.material_deep_orange.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.material_brown.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.material_brown.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.material_brown.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.material_grey.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.material_grey.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.material_grey.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.material_blue_grey.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent.material_blue_grey.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive.material_blue_grey.Black">
+        <item name="colorPrimaryDark">@color/color_primary_dark_black</item>
+        <item name="colorSurface">@android:color/black</item>
+    </style>
+</resources>

@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+  ~ Copyright (c) 2019 Hai Zhang <dreaming.in.code.zh@gmail.com>
+  ~ All Rights Reserved.
+  -->
+
+<resources>
+
+    <style name="Platform.V21.Theme.NexFiles" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimaryDark">@color/system_window_scrim_compat</item>
+    </style>
+    <style name="Platform.Theme.NexFiles" parent="Platform.V21.Theme.NexFiles" />
+    <style name="Base.Theme.NexFiles" parent="Platform.Theme.NexFiles">
+
+        <item name="actionBarTheme">@style/ThemeOverlay.NexFiles.ActionBar</item>
+        <item name="actionBarPopupTheme">@style/ThemeOverlay.NexFiles.ActionBarPopup</item>
+        <item name="android:colorBackground">?colorSurface</item>
+        <item name="dropDownListViewStyle">@style/Widget.NexFiles.ListView.DropDown</item>
+        <!-- https://developer.android.com/training/tv/start/start#transition-color -->
+        <item name="android:windowAllowEnterTransitionOverlap">true</item>
+        <item name="android:windowAllowReturnTransitionOverlap">true</item>
+
+        <item name="colorPrimary">@color/color_primary</item>
+        <item name="colorPrimaryVariant">?colorPrimary</item>
+        <item name="colorSecondary">?colorPrimary</item>
+        <item name="colorOnSecondary">?colorOnPrimary</item>
+        <item name="colorSecondaryVariant">?colorSecondary</item>
+        <item name="colorSurface">@color/color_surface</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.NexFiles.MediumComponent</item>
+        <item name="buttonBarButtonStyle">@style/Widget.MaterialComponents.Button.TextButton.Dialog</item>
+        <item name="materialCardViewStyle">@style/Widget.NexFiles.CardView</item>
+        <item name="navigationViewStyle">@style/Widget.NexFiles.NavigationView</item>
+        <item name="switchPreferenceCompatStyle">@style/Preference.NexFiles.SwitchPreferenceCompat</item>
+        <item name="textInputStyle">?textInputOutlinedStyle</item>
+        <item name="minTouchTargetSize">0dp</item>
+
+        <item name="colorAppBarSurface">?colorSurface</item>
+    </style>
+    <style name="Theme.NexFiles" parent="Base.Theme.NexFiles" />
+
+    <style name="Platform.V21.Theme.NexFiles.Translucent" parent="Theme.NexFiles">
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+    </style>
+    <style name="Platform.Theme.NexFiles.Translucent" parent="Platform.V21.Theme.NexFiles.Translucent" />
+    <style name="Base.Theme.NexFiles.Translucent" parent="Platform.Theme.NexFiles.Translucent">
+        <item name="android:colorBackgroundCacheHint">@null</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+    <style name="Theme.NexFiles.Translucent" parent="Base.Theme.NexFiles.Translucent" />
+
+    <style name="Platform.V21.Theme.NexFiles.Immersive" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="android:navigationBarColor">?colorPrimaryDark</item>
+
+        <item name="colorPrimaryDark">@color/dark_50_percent</item>
+    </style>
+    <style name="Platform.Theme.NexFiles.Immersive" parent="Platform.V21.Theme.NexFiles.Immersive" />
+    <style name="Base.Theme.NexFiles.Immersive" parent="Platform.Theme.NexFiles.Immersive">
+
+        <item name="actionBarTheme">@style/ThemeOverlay.NexFiles.ActionBar</item>
+        <item name="actionBarPopupTheme">@style/ThemeOverlay.NexFiles.ActionBarPopup</item>
+        <item name="android:colorBackground">?colorSurface</item>
+        <item name="dropDownListViewStyle">@style/Widget.NexFiles.ListView.DropDown</item>
+        <!-- https://developer.android.com/training/tv/start/start#transition-color -->
+        <item name="android:windowAllowEnterTransitionOverlap">true</item>
+        <item name="android:windowAllowReturnTransitionOverlap">true</item>
+        <item name="android:windowBackground">@android:color/black</item>
+
+        <item name="colorPrimary">@color/color_primary_dark</item>
+        <item name="colorPrimaryVariant">?colorPrimary</item>
+        <item name="colorSecondary">?colorPrimary</item>
+        <item name="colorOnSecondary">?colorOnPrimary</item>
+        <item name="colorSecondaryVariant">?colorSecondary</item>
+        <item name="colorSurface">@color/color_surface_dark</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.NexFiles.MediumComponent</item>
+        <item name="buttonBarButtonStyle">@style/Widget.MaterialComponents.Button.TextButton.Dialog</item>
+        <item name="materialCardViewStyle">@style/Widget.NexFiles.CardView</item>
+        <item name="navigationViewStyle">@style/Widget.NexFiles.NavigationView</item>
+        <item name="switchPreferenceCompatStyle">@style/Preference.NexFiles.SwitchPreferenceCompat</item>
+        <item name="textInputStyle">?textInputOutlinedStyle</item>
+        <item name="minTouchTargetSize">0dp</item>
+
+        <item name="colorAppBarSurface">@color/dark_50_percent</item>
+    </style>
+    <style name="Theme.NexFiles.Immersive" parent="Base.Theme.NexFiles.Immersive" />
+</resources>
