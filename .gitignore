@@ -8,3 +8,7 @@
 /signing.properties
 .DS_Store
 *.iml
+
+# Unrelated third-party APKs
+*.apk
+!app/**/*.apk

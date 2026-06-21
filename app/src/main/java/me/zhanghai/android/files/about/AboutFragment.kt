@@ -42,6 +42,6 @@ class AboutFragment : Fragment() {
 
     companion object {
         // TODO: Replace with the NexFiles repository URL once available.
-        private val GITHUB_URI = Uri.parse("https://github.com/shiahonb777/NexFiles")
+        private val GITHUB_URI = Uri.parse("https://github.com/shiaho777/NexFiles")
     }
 }
