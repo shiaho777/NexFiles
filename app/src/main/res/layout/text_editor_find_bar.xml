@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+  ~ Copyright (c) 2024 Hai Zhang <dreaming.in.code.zh@gmail.com>
+  ~ All Rights Reserved.
+  -->
+
+<!--
+  In-editor find bar, shown below the toolbar when the user activates the find action. It carries
+  the query editor plus previous/next/close controls and a match-count readout; the actual
+  highlighting and navigation live in TextEditorFragment.
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="@dimen/screen_edge_margin"
+    android:paddingEnd="@dimen/screen_edge_margin"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp"
+    android:visibility="gone"
+    android:focusable="true">
+
+    <EditText
+        android:id="@+id/findEdit"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:hint="@string/text_editor_find_hint"
+        android:imeOptions="actionSearch"
+        android:inputType="text"
+        android:maxLines="1" />
+
+    <TextView
+        android:id="@+id/findCountText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:minWidth="48dp"
+        android:textAppearance="?textAppearanceCaption"
+        android:gravity="center"
+        android:visibility="gone" />
+
+    <ImageButton
+        android:id="@+id/findPreviousButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:minWidth="0dp"
+        android:minHeight="0dp"
+        android:padding="8dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@android:drawable/arrow_up_float"
+        android:contentDescription="@string/text_editor_find_previous"
+        app:tint="?colorControlNormal" />
+
+    <ImageButton
+        android:id="@+id/findNextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:minWidth="0dp"
+        android:minHeight="0dp"
+        android:padding="8dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@android:drawable/arrow_down_float"
+        android:contentDescription="@string/text_editor_find_next"
+        app:tint="?colorControlNormal" />
+
+    <ImageButton
+        android:id="@+id/findCloseButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:minWidth="0dp"
+        android:minHeight="0dp"
+        android:padding="8dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/close_icon_control_normal_24dp"
+        android:contentDescription="@string/text_editor_find_close"
+        app:tint="?colorControlNormal" />
+</LinearLayout>
