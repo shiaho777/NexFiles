@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+  ~ Copyright (c) 2026 Hai Zhang <dreaming.in.code.zh@gmail.com>
+  ~ All Rights Reserved.
+  -->
+
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="@dimen/abc_dialog_title_divider_material">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="?dialogPreferredPadding"
+        android:layout_marginEnd="?dialogPreferredPadding"
+        android:text="@string/sign_apk_scheme"
+        android:textColor="?colorAccent"
+        android:textSize="12sp" />
+
+    <CheckBox
+        android:id="@+id/v1CheckBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/dense_single_line_list_item_height"
+        android:paddingStart="@dimen/dialog_padding"
+        android:paddingEnd="@dimen/dialog_padding"
+        android:checked="true"
+        android:text="@string/sign_apk_scheme_v1"
+        android:textAppearance="?textAppearanceListItem" />
+
+    <CheckBox
+        android:id="@+id/v2CheckBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/dense_single_line_list_item_height"
+        android:paddingStart="@dimen/dialog_padding"
+        android:paddingEnd="@dimen/dialog_padding"
+        android:checked="true"
+        android:text="@string/sign_apk_scheme_v2"
+        android:textAppearance="?textAppearanceListItem" />
+
+    <CheckBox
+        android:id="@+id/v3CheckBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/dense_single_line_list_item_height"
+        android:paddingStart="@dimen/dialog_padding"
+        android:paddingEnd="@dimen/dialog_padding"
+        android:checked="true"
+        android:text="@string/sign_apk_scheme_v3"
+        android:textAppearance="?textAppearanceListItem" />
+
+    <include layout="@layout/name_dialog_name_include" />
+
+</LinearLayout>
