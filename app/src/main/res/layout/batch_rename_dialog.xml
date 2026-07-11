@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+  ~ Copyright (c) 2024 Hai Zhang <dreaming.in.code.zh@gmail.com>
+  ~ All Rights Reserved.
+  -->
+
+<!--
+  Batch rename dialog: a template editor on top, a live preview list below. The template supports
+  tokens [name] [ext] [n]/[nn]/[nnn] [N] and a leading s/old/new/flags regex substitution; the
+  preview re-renders on every keystroke so users see exactly what they'll get before applying.
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="?dialogPreferredPadding"
+    android:paddingEnd="?dialogPreferredPadding"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/batch_rename_template_hint"
+        android:textAppearance="?textAppearanceCaption"
+        android:textColor="?colorAccent" />
+
+    <com.google.android.material.textfield.TextInputEditText
+        android:id="@+id/templateEdit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="[name]_[nn][ext]"
+        android:inputType="text"
+        android:singleLine="true" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="8dp"
+        android:maxHeight="280dp">
+
+        <TextView
+            android:id="@+id/previewText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textAppearance="?textAppearanceBody2" />
+    </ScrollView>
+</LinearLayout>
