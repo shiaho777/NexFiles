@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+  ~ Copyright (c) 2024 Hai Zhang <dreaming.in.code.zh@gmail.com>
+  ~ All Rights Reserved.
+  -->
+
+<menu
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_toggle_keyboard"
+        android:title="@string/terminal_toggle_keyboard"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_switch_distro"
+        android:title="@string/terminal_switch_distro"
+        app:showAsAction="never" />
+</menu>
