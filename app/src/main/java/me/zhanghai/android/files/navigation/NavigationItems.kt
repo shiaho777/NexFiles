@@ -58,6 +58,11 @@ val navigationItems: List<NavigationItem?>
                 add(null)
                 addAll(bookmarkDirectoryItems)
             }
+            val recentDirectoryItems = recentDirectoryItems
+            if (recentDirectoryItems.isNotEmpty()) {
+                add(null)
+                addAll(recentDirectoryItems)
+            }
             add(null)
             addAll(menuItems)
         }
@@ -349,6 +354,33 @@ private class BookmarkDirectoryItem(
             EditBookmarkDirectoryDialogActivity::class.createIntent()
                 .putArgs(EditBookmarkDirectoryDialogFragment.Args(bookmarkDirectory))
         )
+        return true
+    }
+}
+
+private val recentDirectoryItems: List<NavigationItem>
+    @Size(min = 0)
+    get() = Settings.RECENT_DIRECTORIES.valueCompat.map { RecentDirectoryItem(it) }
+
+// High bit set keeps recent ids in a separate range from path-hash ids (which stay low), so a
+// directory present in both recent and bookmarks renders as two distinct navigation entries.
+private const val RECENT_ID_OFFSET = 1L shl 60
+
+private class RecentDirectoryItem(private val recentDirectory: RecentDirectory) :
+    PathItem(recentDirectory.path) {
+    // Offset the path hash into a separate id space from bookmarks/storage so a directory that
+    // appears in both "recent" and "bookmarked" still renders as two distinct items.
+    override val id: Long
+        get() = RECENT_ID_OFFSET xor recentDirectory.path.hashCode().toLong()
+
+    @DrawableRes
+    override val iconRes: Int = R.drawable.directory_icon_white_24dp
+
+    override fun getTitle(context: Context): String = recentDirectory.name
+
+    override fun onLongClick(listener: Listener): Boolean {
+        // Long-press removes the entry from the recent list; a tap still navigates via PathItem.
+        RecentDirectories.remove(recentDirectory.path)
         return true
     }
 }

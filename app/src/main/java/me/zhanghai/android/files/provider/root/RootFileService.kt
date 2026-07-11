@@ -10,6 +10,7 @@ import android.content.Context
 import android.os.Process
 import android.util.Log
 import me.zhanghai.android.files.BuildConfig
+import me.zhanghai.android.files.hiddenapi.HiddenApi
 import me.zhanghai.android.files.provider.FileSystemProviders
 import me.zhanghai.android.files.provider.remote.RemoteFileService
 import me.zhanghai.android.files.provider.remote.RemoteInterface
@@ -49,6 +50,10 @@ object RootFileService : RemoteFileService(
         Log.i(LOG_TAG, "Installing file system providers")
         FileSystemProviders.install()
         FileSystemProviders.overflowWatchEvents = true
+        // The fd fast path in RemoteSeekableByteChannel/RemoteInputStream reflects into
+        // sun.nio.ch.FileChannelImpl.fd to extract a file descriptor for zero-round-trip
+        // reads; ensure the non-SDK interface is reachable in this (root/shell) process too.
+        HiddenApi.disableHiddenApiChecks()
     }
 
     private fun createPackageContext(packageName: String): Context {

@@ -109,3 +109,11 @@ internal class ArchivePath : ByteStringListPath<ArchivePath>, RootablePath {
 
 val Path.isArchivePath: Boolean
     get() = this is ArchivePath
+
+/**
+ * True if this is a path inside an archive whose filesystem has pending copy-on-write edits that
+ * a "save archive changes" action would commit. Used by the file list to show that menu item only
+ * when there is something to save.
+ */
+val Path.hasPendingArchiveEdits: Boolean
+    get() = (this as? ArchivePath)?.fileSystem?.hasPendingEdits == true

@@ -19,6 +19,19 @@
         tools:ignore="AlwaysShowAction" />
 
     <item
+        android:id="@+id/action_find"
+        android:icon="@drawable/search_icon_control_normal_24dp"
+        android:orderInCategory="100"
+        android:title="@string/text_editor_find"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_save_as"
+        android:orderInCategory="100"
+        android:title="@string/text_editor_save_as"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_reload"
         android:orderInCategory="100"
         android:title="@string/reload"

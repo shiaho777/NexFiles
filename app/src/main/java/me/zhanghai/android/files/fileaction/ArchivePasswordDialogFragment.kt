@@ -27,6 +27,7 @@ import me.zhanghai.android.files.compat.requireViewByIdCompat
 import me.zhanghai.android.files.databinding.ArchivePasswordDialogBinding
 import me.zhanghai.android.files.provider.archive.archiveAddPassword
 import me.zhanghai.android.files.provider.archive.archiveFile
+import me.zhanghai.android.files.settings.Settings
 import me.zhanghai.android.files.ui.AllowSoftInputHackAlertDialogCustomView
 import me.zhanghai.android.files.util.ParcelableArgs
 import me.zhanghai.android.files.util.ParcelableParceler
@@ -106,6 +107,14 @@ class ArchivePasswordDialogFragment : AppCompatDialogFragment() {
             return
         }
         args.path.archiveAddPassword(password)
+        // Persist the password for future archives when the user opts in, so they don't have to
+        // retype it for archives sharing the same key.
+        if (binding.rememberPasswordCheckBox.isChecked) {
+            val passwords = Settings.ARCHIVE_PASSWORDS.valueCompat.toMutableSet()
+            if (passwords.add(password)) {
+                Settings.ARCHIVE_PASSWORDS.putValue(passwords)
+            }
+        }
         notifyListenerOnce(true)
         finish()
     }

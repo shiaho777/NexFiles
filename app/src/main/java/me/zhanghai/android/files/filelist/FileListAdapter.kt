@@ -31,12 +31,14 @@ import me.zhanghai.android.files.compat.isSingleLineCompat
 import me.zhanghai.android.files.databinding.FileItemGridBinding
 import me.zhanghai.android.files.databinding.FileItemListBinding
 import me.zhanghai.android.files.file.FileItem
+import me.zhanghai.android.files.file.FileSize
 import me.zhanghai.android.files.file.fileSize
 import me.zhanghai.android.files.file.formatShort
 import me.zhanghai.android.files.file.iconRes
 import me.zhanghai.android.files.file.isApk
 import me.zhanghai.android.files.provider.archive.isArchivePath
 import me.zhanghai.android.files.provider.common.SearchOptions
+import me.zhanghai.android.files.provider.linux.isLinuxPath
 import me.zhanghai.android.files.provider.common.isEncrypted
 import me.zhanghai.android.files.settings.Settings
 import me.zhanghai.android.files.ui.AnimatedListAdapter
@@ -54,6 +56,10 @@ class FileListAdapter(
 
     // Non-null only while a search is active; drives name highlighting in onBindViewHolder.
     private var searchOptions: SearchOptions? = null
+
+    // Cached recursive sizes for directories (computed off-thread). A directory's displayed size
+    // comes from here when present, falling back to the entry's own size otherwise.
+    var directorySizes: Map<Path, FileSize>? = null
 
     // Captured when the first view holder is created; resolved lazily on first highlight into a
     // translucent accent that reads well on both light and dark themes.
@@ -371,7 +377,14 @@ class FileListAdapter(
             val context = holder.descriptionText!!.context
             val lastModificationTime = attributes.lastModifiedTime().toInstant()
                 .formatShort(context)
-            val size = attributes.fileSize.formatHumanReadable(context)
+            // Directories show their cached recursive size once computed; until then the entry's
+            // own size (a small placeholder) is shown rather than blocking on computation.
+            val size = if (attributes.isDirectory) {
+                directorySizes?.let { it[path]?.formatHumanReadable(context) }
+                    ?: attributes.fileSize.formatHumanReadable(context)
+            } else {
+                attributes.fileSize.formatHumanReadable(context)
+            }
             val descriptionSeparator = context.getString(R.string.file_item_description_separator)
             listOf(lastModificationTime, size).joinToString(descriptionSeparator)
         }
@@ -382,11 +395,19 @@ class FileListAdapter(
         menu.findItem(R.id.action_rename).isVisible = !isReadOnly
         menu.findItem(R.id.action_extract).isVisible = file.isArchiveFile
         menu.findItem(R.id.action_archive).isVisible = !isArchivePath
+        // APK signing/stripping only applies to local APK files (the engine needs random access).
+        val isLocalApk = file.mimeType.isApk && path.isLinuxPath
+        menu.findItem(R.id.action_sign_apk).isVisible = isLocalApk
+        menu.findItem(R.id.action_strip_signature).isVisible = isLocalApk
         menu.findItem(R.id.action_add_bookmark).isVisible = isDirectory
         holder.popupMenu.setOnMenuItemClickListener {
             when (it.itemId) {
                 R.id.action_open_with -> {
                     listener.openFileWith(file)
+                    true
+                }
+                R.id.action_open_hex -> {
+                    listener.openHex(file)
                     true
                 }
                 R.id.action_cut -> {
@@ -411,6 +432,14 @@ class FileListAdapter(
                 }
                 R.id.action_archive -> {
                     listener.showCreateArchiveDialog(file)
+                    true
+                }
+                R.id.action_sign_apk -> {
+                    listener.signApk(file)
+                    true
+                }
+                R.id.action_strip_signature -> {
+                    listener.stripApkSignature(file)
                     true
                 }
                 R.id.action_share -> {
@@ -520,12 +549,15 @@ class FileListAdapter(
         fun selectFiles(files: FileItemSet, selected: Boolean)
         fun openFile(file: FileItem)
         fun openFileWith(file: FileItem)
+        fun openHex(file: FileItem)
         fun cutFile(file: FileItem)
         fun copyFile(file: FileItem)
         fun confirmDeleteFile(file: FileItem)
         fun showRenameFileDialog(file: FileItem)
         fun extractFile(file: FileItem)
         fun showCreateArchiveDialog(file: FileItem)
+        fun signApk(file: FileItem)
+        fun stripApkSignature(file: FileItem)
         fun shareFile(file: FileItem)
         fun copyPath(file: FileItem)
         fun addBookmark(file: FileItem)

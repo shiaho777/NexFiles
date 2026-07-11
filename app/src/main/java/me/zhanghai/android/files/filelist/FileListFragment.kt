@@ -11,6 +11,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.AsyncTask
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -32,7 +33,6 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
-import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.pm.ShortcutInfoCompat
@@ -69,7 +69,12 @@ import me.zhanghai.android.files.file.asMimeTypeOrNull
 import me.zhanghai.android.files.file.extension
 import me.zhanghai.android.files.file.fileProviderUri
 import me.zhanghai.android.files.file.isApk
+import me.zhanghai.android.files.file.isDex
 import me.zhanghai.android.files.file.isImage
+import me.zhanghai.android.files.file.isMedia
+import me.zhanghai.android.files.apksign.DefaultSignerProvider
+import me.zhanghai.android.files.fileaction.ExtractApkActivity
+import me.zhanghai.android.files.fileaction.SignApkDialogFragment
 import me.zhanghai.android.files.filejob.FileJobService
 import me.zhanghai.android.files.filelist.FileSortOptions.By
 import me.zhanghai.android.files.filelist.FileSortOptions.Order
@@ -78,11 +83,14 @@ import me.zhanghai.android.files.navigation.BookmarkDirectories
 import me.zhanghai.android.files.navigation.BookmarkDirectory
 import me.zhanghai.android.files.navigation.NavigationFragment
 import me.zhanghai.android.files.navigation.NavigationRootMapLiveData
+import me.zhanghai.android.files.provider.archive.ArchivePath
 import me.zhanghai.android.files.provider.archive.createArchiveRootPath
+import me.zhanghai.android.files.provider.archive.hasPendingArchiveEdits
 import me.zhanghai.android.files.provider.archive.isArchivePath
+import me.zhanghai.android.files.provider.common.newInputStream
 import me.zhanghai.android.files.provider.linux.isLinuxPath
 import me.zhanghai.android.files.settings.Settings
-import me.zhanghai.android.files.terminal.Terminal
+import me.zhanghai.android.files.terminal.TerminalActivity
 import me.zhanghai.android.files.ui.AppBarLayoutExpandHackListener
 import me.zhanghai.android.files.ui.CoordinatorAppBarLayout
 import me.zhanghai.android.files.ui.DrawerLayoutOnBackPressedCallback
@@ -129,12 +137,18 @@ import me.zhanghai.android.files.util.takeIfNotEmpty
 import me.zhanghai.android.files.util.valueCompat
 import me.zhanghai.android.files.util.viewModels
 import me.zhanghai.android.files.util.withChooser
+import me.zhanghai.android.files.viewer.axml.AxmlViewerActivity
+import me.zhanghai.android.files.viewer.arsc.ArscViewerActivity
+import me.zhanghai.android.files.viewer.dex.DexEditorActivity
+import me.zhanghai.android.files.viewer.hex.HexViewerActivity
 import me.zhanghai.android.files.viewer.image.ImageViewerActivity
+import me.zhanghai.android.files.viewer.media.MediaViewerActivity
 import kotlin.math.roundToInt
 
 class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.Listener,
     ConfirmReplaceFileDialogFragment.Listener, OpenApkDialogFragment.Listener,
     ConfirmDeleteFilesDialogFragment.Listener, CreateArchiveDialogFragment.Listener,
+    SignApkDialogFragment.Listener,
     RenameFileDialogFragment.Listener, CreateFileDialogFragment.Listener,
     CreateDirectoryDialogFragment.Listener, NavigateToPathDialogFragment.Listener,
     NavigationFragment.Listener, ShowRequestAllFilesAccessRationaleDialogFragment.Listener,
@@ -189,7 +203,19 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         if (query.isEmpty()) {
             return@DebouncedRunnable
         }
-        viewModel.search(query)
+        // Refine-in-results when the user is just appending to the previous query: the existing
+        // result set is guaranteed to be a superset, so filtering it in memory is both faster and
+        // more responsive than re-walking the tree. Otherwise (new query, or filter changed
+        // elsewhere) fall back to a full search.
+        val previousQuery = viewModel.searchState.options.query
+        if (viewModel.canRefine && previousQuery.isNotEmpty()
+            && query.startsWith(previousQuery, ignoreCase = true)
+            && query.length > previousQuery.length
+        ) {
+            viewModel.refine(query)
+        } else {
+            viewModel.search(query)
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -218,9 +244,9 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
                 as NavigationFragment
         }
         navigationFragment.listener = this
-        val activity = requireActivity() as AppCompatActivity
-        activity.setTitle(R.string.file_list_title)
-        activity.setSupportActionBar(binding.toolbar)
+        val host = requireActivity() as FileListFragmentHost
+        host.setTitle(getString(R.string.file_list_title))
+        host.setSupportToolbar(binding.toolbar)
         overlayActionMode = OverlayToolbarActionMode(binding.overlayToolbar)
         bottomActionMode = PersistentBarLayoutToolbarActionMode(
             binding.persistentBarLayout, binding.bottomBarLayout, binding.bottomToolbar
@@ -234,13 +260,13 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         }
         binding.appBarLayout.syncBackgroundColorTo(binding.overlayToolbar)
         binding.breadcrumbLayout.setListener(this)
-        if (!(activity.hasSw600Dp && activity.isOrientationLandscape)) {
+        if (!(host.hasSw600Dp && host.isLandscape)) {
             binding.swipeRefreshLayout.setProgressViewEndTarget(
                 true, binding.swipeRefreshLayout.progressViewEndOffset
             )
         }
         binding.swipeRefreshLayout.setOnRefreshListener { this.refresh() }
-        layoutManager = GridLayoutManager(activity, 1)
+        layoutManager = GridLayoutManager(requireContext(), 1)
         binding.recyclerView.layoutManager = layoutManager
         adapter = FileListAdapter(this)
         binding.recyclerView.adapter = adapter
@@ -347,7 +373,13 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         // Re-evaluate the filter action visibility whenever the search state flips, so the toolbar
         // keeps it hidden outside a search without needing a manual menu refresh.
         viewModel.searchStateLiveData.observe(viewLifecycleOwner) {
-            activity?.invalidateOptionsMenu()
+            (requireActivity() as FileListFragmentHost).invalidateOptionsMenu()
+        }
+        // Push computed directory sizes into the adapter so folders show their true recursive
+        // usage instead of the placeholder entry size.
+        DirectorySizeCalculator.sizes.observe(viewLifecycleOwner) { sizes ->
+            adapter.directorySizes = sizes
+            adapter.notifyItemRangeChanged(0, adapter.itemCount)
         }
         viewModel.breadcrumbLiveData.observe(viewLifecycleOwner) {
             binding.breadcrumbLayout.setData(it)
@@ -449,12 +481,22 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         // The filter entry is only meaningful while a search is active; hide it otherwise so the
         // toolbar stays uncluttered during normal browsing.
         menu.findItem(R.id.action_search_filter)?.isVisible = viewModel.searchState.isSearching
+        // "Save archive changes" only applies when browsing inside an archive with pending edits.
+        menu.findItem(R.id.action_archive_save)?.isVisible = currentPath.hasPendingArchiveEdits
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_search_filter -> {
                 showSearchFilterDialog()
+                true
+            }
+            R.id.action_extract_apk -> {
+                startActivity(Intent(requireContext(), ExtractApkActivity::class.java))
+                true
+            }
+            R.id.action_archive_save -> {
+                saveArchiveChanges()
                 true
             }
             android.R.id.home -> {
@@ -743,6 +785,30 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         NavigateToPathDialogFragment.show(currentPath, this)
     }
 
+    private fun saveArchiveChanges() {
+        val path = currentPath as? ArchivePath ?: return
+        val fileSystem = path.fileSystem
+        AsyncTask.THREAD_POOL_EXECUTOR.execute {
+            val ok = try {
+                fileSystem.commitEdits()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                requireActivity().runOnUiThread {
+                    showToast(getString(R.string.archive_save_failed_format, e.message ?: ""))
+                }
+                return@execute
+            }
+            requireActivity().runOnUiThread {
+                if (ok) {
+                    showToast(R.string.archive_save_success)
+                    viewModel.reload()
+                } else {
+                    showToast(getString(R.string.archive_save_failed_format, ""))
+                }
+            }
+        }
+    }
+
     private fun showSearchFilterDialog() {
         val args = SearchFilterDialogFragment.Args(viewModel.searchFilter) { filter ->
             viewModel.setSearchFilter(filter)
@@ -799,12 +865,9 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
     }
 
     private fun openInTerminal() {
-        val path = currentPath
-        if (path.isLinuxPath) {
-            Terminal.open(path.toFile().path, requireContext())
-        } else {
-            // TODO
-        }
+        // Launch the built-in proot terminal. (A future enhancement can pass the current path as
+        // a proot --cwd so the shell starts there; for now the user lands in the rootfs home.)
+        startActivity(Intent(requireContext(), TerminalActivity::class.java))
     }
 
     override fun navigateTo(path: Path) {
@@ -836,7 +899,7 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
                     getQuantityString(R.plurals.file_list_title_open_directory, count)
             }
         }
-        requireActivity().title = title
+        (requireActivity() as FileListFragmentHost).setTitle(title)
         updateSelectAllMenuItem()
         updateOverlayToolbar()
         updateBottomToolbar()
@@ -881,7 +944,7 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         }
         requireActivity().run {
             setResult(Activity.RESULT_OK, intent)
-            finish()
+            (this as FileListFragmentHost).finish()
         }
     }
 
@@ -986,6 +1049,14 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
                 showCreateArchiveDialog(viewModel.selectedFiles)
                 true
             }
+            R.id.action_checksum -> {
+                showChecksumDialog(viewModel.selectedFiles)
+                true
+            }
+            R.id.action_batch_rename -> {
+                BatchRenameDialogFragment.show(viewModel.selectedFiles, this)
+                true
+            }
             R.id.action_share -> {
                 shareFiles(viewModel.selectedFiles)
                 true
@@ -1044,16 +1115,46 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         CreateArchiveDialogFragment.show(files, this)
     }
 
+    override fun signApk(file: FileItem) {
+        SignApkDialogFragment.show(file, this)
+    }
+
+    override fun stripApkSignature(file: FileItem) {
+        val originalName = file.name
+        val baseName = originalName.substringBeforeLast(".apk", originalName)
+        val targetName = "$baseName-unsigned.apk"
+        val targetPath = file.path.resolveSibling(targetName)
+        FileJobService.stripApkSignature(file.path, targetPath, requireContext())
+    }
+
+    override fun signApk(file: FileItem, outputName: String, v1: Boolean, v2: Boolean, v3: Boolean) {
+        val targetPath = file.path.resolveSibling(outputName)
+        val config = DefaultSignerProvider.loadDefault(requireContext(), v1, v2, v3)
+        FileJobService.signApk(file.path, targetPath, config, requireContext()) { success ->
+            if (success) {
+                // Offer to install the freshly signed APK, the natural next step after resigning.
+                startActivitySafe(targetPath.fileProviderUri.createInstallPackageIntent())
+            }
+        }
+    }
+
+    private fun showChecksumDialog(files: FileItemSet) {
+        ChecksumListDialogFragment.show(files, this)
+    }
+
     override fun archive(
         files: FileItemSet,
         name: String,
         format: Int,
         filter: Int,
-        password: String?
+        password: String?,
+        encryption: ArchiveEncryption,
+        compressionLevel: Int?
     ) {
         val archiveFile = viewModel.currentPath.resolve(name)
         FileJobService.archive(
-            makePathListForJob(files), archiveFile, format, filter, password, requireContext()
+            makePathListForJob(files), archiveFile, format, filter, password, encryption,
+            compressionLevel, requireContext()
         )
         viewModel.selectFiles(files, false)
     }
@@ -1164,7 +1265,7 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
     private fun onBottomToolbarNavigationIconClicked() {
         val pickOptions = viewModel.pickOptions
         if (pickOptions != null) {
-            requireActivity().finish()
+            (requireActivity() as FileListFragmentHost).finish()
         } else {
             bottomActionMode.finish()
         }
@@ -1258,11 +1359,90 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
             openApk(file)
             return
         }
+        // DEX files open in the built-in editor/viewer for class listing and string editing.
+        // Detection is by extension (the platform has no canonical DEX MIME type); the editor
+        // validates the `dex\n` magic on open and reports a clean error for non-DEX files.
+        val name = file.name
+        if (file.mimeType.isDex || name.endsWith(".dex", ignoreCase = true)) {
+            openDex(file)
+            return
+        }
+        // resources.arsc opens in the built-in read-only resource table viewer.
+        if (name.equals("resources.arsc", ignoreCase = true)) {
+            openArsc(file)
+            return
+        }
+        // Binary XML (AndroidManifest.xml and compiled layouts in APKs) opens in the AXML viewer.
+        // We detect binary XML by magic (0x0003 0x0008 = RES_XML_TYPE + header size 8); plaintext
+        // XML files don't match and fall through to the text editor or external viewer.
+        if (name.endsWith(".xml", ignoreCase = true) && file.path.isArchivePath && isBinaryXml(file)) {
+            openAxml(file)
+            return
+        }
+        // Split-APK bundles (.apks / .xapk) are zips containing base + splits; install them as one
+        // atomic PackageInstaller session rather than treating them as a plain archive to browse.
+        if (name.endsWith(".apks", ignoreCase = true) ||
+            name.endsWith(".xapk", ignoreCase = true)) {
+            FileJobService.installSplitApks(file.path, requireContext())
+            return
+        }
         if (file.isListable) {
             navigateTo(file.listablePath)
             return
         }
+        // Media files on the local filesystem open in the built-in previewer for a quick look;
+        // "Open with" remains available for users who prefer an external player. Archives and
+        // remote paths still fall through to the generic intent, since they need a copy first.
+        if (file.mimeType.isMedia && file.path.isLinuxPath && !file.path.isArchivePath) {
+            openMedia(file)
+            return
+        }
         openFileWithIntent(file, false)
+    }
+
+    private fun openMedia(file: FileItem) {
+        val intent = Intent(requireContext(), MediaViewerActivity::class.java)
+            .setDataAndType(file.path.fileProviderUri, file.mimeType.value)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        startActivitySafe(intent)
+    }
+
+    private fun openDex(file: FileItem) {
+        val intent = Intent(requireContext(), DexEditorActivity::class.java)
+            .apply { extraPath = file.path }
+        startActivitySafe(intent)
+    }
+
+    private fun openAxml(file: FileItem) {
+        val intent = Intent(requireContext(), AxmlViewerActivity::class.java)
+            .apply { extraPath = file.path }
+        startActivitySafe(intent)
+    }
+
+    private fun openArsc(file: FileItem) {
+        val intent = Intent(requireContext(), ArscViewerActivity::class.java)
+            .apply { extraPath = file.path }
+        startActivitySafe(intent)
+    }
+
+    override fun openHex(file: FileItem) {
+        val intent = Intent(requireContext(), HexViewerActivity::class.java)
+            .apply { extraPath = file.path }
+        startActivitySafe(intent)
+    }
+
+    /**
+     * Peeks at the first 4 bytes of [file] to detect Android binary XML: the header is
+     * `uint16 type=0x0003 | uint16 headerSize=0x0008`. This is fast (reads only 4 bytes) and
+     * avoids misrouting plaintext XML to the binary viewer.
+     */
+    private fun isBinaryXml(file: FileItem): Boolean = try {
+        file.path.newInputStream().use { input ->
+            val b0 = input.read(); val b1 = input.read(); val b2 = input.read(); val b3 = input.read()
+            b0 == 0x03 && b1 == 0x00 && b2 == 0x08 && b3 == 0x00
+        }
+    } catch (e: Exception) {
+        false
     }
 
     private fun openApk(file: FileItem) {

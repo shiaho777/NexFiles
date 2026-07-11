@@ -120,9 +120,16 @@ object ArchiveFileSystemProvider : FileSystemProvider(), PathObservableProvider,
         vararg attributes: FileAttribute<*>
     ): SeekableByteChannel {
         file as? ArchivePath ?: throw ProviderMismatchException(file.toString())
-        options.toOpenOptions().checkForArchive()
+        val openOptions = options.toOpenOptions()
+        openOptions.checkForArchive()
         if (attributes.isNotEmpty()) {
             throw UnsupportedOperationException(attributes.contentToString())
+        }
+        // WRITE/CREATE into an archive is staged in memory and committed to the edit overlay on
+        // close; the archive itself is only rewritten on ArchiveFileSystem.commitEdits. READ still
+        // goes through the read path (newInputStream), not this channel.
+        if (openOptions.write) {
+            return ArchiveEditByteChannel(file, file.fileSystem)
         }
         throw UnsupportedOperationException()
     }
@@ -140,7 +147,7 @@ object ArchiveFileSystemProvider : FileSystemProvider(), PathObservableProvider,
     @Throws(IOException::class)
     override fun createDirectory(directory: Path, vararg attributes: FileAttribute<*>) {
         directory as? ArchivePath ?: throw ProviderMismatchException(directory.toString())
-        throw ReadOnlyFileSystemException(directory.toString())
+        directory.fileSystem.createDirectoryInLayer(directory)
     }
 
     @Throws(IOException::class)
@@ -163,7 +170,7 @@ object ArchiveFileSystemProvider : FileSystemProvider(), PathObservableProvider,
     @Throws(IOException::class)
     override fun delete(path: Path) {
         path as? ArchivePath ?: throw ProviderMismatchException(path.toString())
-        throw ReadOnlyFileSystemException(path.toString())
+        path.fileSystem.deleteInLayer(path)
     }
 
     @Throws(IOException::class)

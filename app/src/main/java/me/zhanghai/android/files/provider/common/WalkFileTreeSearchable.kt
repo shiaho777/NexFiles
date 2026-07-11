@@ -80,11 +80,22 @@ object WalkFileTreeSearchable {
                 // Early pruning on name/size/time using only the attributes we already hold; the
                 // mime-type filter is applied later against the precise value produced by
                 // loadFileItem(), so we pass null here to skip it.
-                if (!options.matches(name, attributes, null)) {
+                if (options.matches(name, attributes, null)) {
+                    paths.add(path)
+                    flushIfNeeded()
                     return
                 }
-                paths.add(path)
-                flushIfNeeded()
+                // Content search (grep): if enabled and the name didn't match, read the file and
+                // look for the query inside. Skipped for directories, oversize files, and anything
+                // that isn't a plausible text file (judged by extension) to keep it affordable.
+                if (options.searchContent && attributes.isRegularFile
+                    && attributes.size() <= options.contentMaxSize
+                    && looksLikeTextFile(name)
+                    && contentContains(path, options)
+                ) {
+                    paths.add(path)
+                    flushIfNeeded()
+                }
             }
 
             // visitFileFailed path: we have no trustworthy attributes, so fall back to a name-only
@@ -233,4 +244,56 @@ object WalkFileTreeSearchable {
             throw InterruptedIOException()
         }
     }
+
+    /**
+     * Cheap heuristic: search the file's contents only if its extension is one commonly holding
+     * text. This avoids opening binaries (images, archives, .so) where a byte-level match would be
+     * meaningless and wasteful. The list is intentionally short and conservative.
+     */
+    private fun looksLikeTextFile(name: String): Boolean {
+        val ext = name.substringAfterLast('.', "").lowercase()
+        return ext in TEXT_EXTENSIONS
+    }
+
+    /** Reads [path] as UTF-8 (best-effort) and returns true if the query matches its contents. */
+    private fun contentContains(path: Path, options: SearchOptions): Boolean {
+        return try {
+            path.newInputStream().use { input ->
+                // Read in chunks to honour the size cap and to allow early exit on first match; we
+                // decode incrementally so a match spanning a chunk boundary is still caught by the
+                // overlapping-window check below.
+                val decoder = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+                var carried = ""
+                val buffer = ByteArray(64 * 1024)
+                while (true) {
+                    if (Thread.interrupted()) throw InterruptedIOException()
+                    val read = input.read(buffer)
+                    if (read == -1) break
+                    // Wrap the raw bytes through the decoder so invalid UTF-8 doesn't crash us.
+                    val bb = java.nio.ByteBuffer.wrap(buffer, 0, read)
+                    val cb = decoder.decode(bb)
+                    val chunk = carried + cb.toString()
+                    if (options.matchesContentSubstring(chunk)) return true
+                    // Carry the tail of the chunk into the next iteration so a match that straddles
+                    // the boundary is still found. The carry length is bounded by the query length.
+                    val carryLen = minOf(options.query.length, chunk.length)
+                    carried = chunk.takeLast(carryLen)
+                }
+                // Final check including any leftover carried text.
+                options.matchesContentSubstring(carried)
+            }
+        } catch (e: InterruptedIOException) {
+            throw e
+        } catch (e: Exception) {
+            // Read failure, permission, encoding — skip the file rather than aborting the search.
+            false
+        }
+    }
+
+    private val TEXT_EXTENSIONS = setOf(
+        "txt", "md", "log", "json", "xml", "html", "htm", "css", "js", "ts", "java", "kt",
+        "py", "rb", "go", "rs", "c", "h", "cpp", "hpp", "cc", "sh", "bash", "zsh", "fish",
+        "yml", "yaml", "toml", "ini", "cfg", "conf", "properties", "gradle", "bat", "ps1",
+        "sql", "csv", "tsv", "php", "pl", "lua", "vim", "diff", "patch", "svg", "rst", "tex"
+    )
 }

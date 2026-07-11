@@ -5,9 +5,13 @@
 
 package me.zhanghai.android.files.settings
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import androidx.preference.Preference
+import androidx.preference.SwitchPreferenceCompat
 import me.zhanghai.android.files.R
+import me.zhanghai.android.files.filejob.RecycleBinActivity
 import me.zhanghai.android.files.theme.custom.CustomThemeHelper
 import me.zhanghai.android.files.theme.custom.ThemeColor
 import me.zhanghai.android.files.theme.night.NightMode
@@ -27,6 +31,28 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 activity.setApplicationLocalesPre33(locales)
             }
         }
+    }
+
+    override fun onPreferenceTreeClick(preference: Preference): Boolean {
+        when (preference.key) {
+            "key_view_recycle_bin" -> {
+                startActivity(Intent(requireContext(), RecycleBinActivity::class.java))
+                return true
+            }
+            "key_webdav_server_running" -> {
+                val switch = preference as SwitchPreferenceCompat
+                // The framework flips isChecked before calling us; start/stop accordingly.
+                if (switch.isChecked) {
+                    me.zhanghai.android.files.webdavserver.WebDavServerService
+                        .start(requireContext())
+                } else {
+                    me.zhanghai.android.files.webdavserver.WebDavServerService
+                        .stop(requireContext())
+                }
+                return true
+            }
+        }
+        return super.onPreferenceTreeClick(preference)
     }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
@@ -72,5 +98,13 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             // between system default and the locale that's the current system default.
             localePreference.notifyChanged()
         }
+        // Sync the WebDAV toggle with the actual service state, so re-entering settings doesn't
+        // show a stale "running" switch after the service was stopped from the notification.
+        val webdavSwitch = preferenceScreen.findPreference<SwitchPreferenceCompat>(
+            "key_webdav_server_running"
+        )
+        webdavSwitch?.isChecked =
+            me.zhanghai.android.files.webdavserver.WebDavServerService.stateLiveData.value ==
+                me.zhanghai.android.files.webdavserver.WebDavServerService.State.RUNNING
     }
 }

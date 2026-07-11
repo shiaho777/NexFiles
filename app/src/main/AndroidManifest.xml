@@ -316,6 +316,23 @@
         </activity>
 
         <activity
+            android:name="me.zhanghai.android.files.fileaction.ExtractApkActivity"
+            android:exported="false"
+            android:label="@string/extract_apk_title" />
+
+        <activity
+            android:name="me.zhanghai.android.files.filejob.RecycleBinActivity"
+            android:exported="false"
+            android:label="@string/settings_recycle_bin_enabled_title" />
+
+        <activity
+            android:name="me.zhanghai.android.files.terminal.TerminalActivity"
+            android:exported="false"
+            android:label="@string/terminal_title"
+            android:configChanges="keyboardHidden|orientation|screenSize"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name="me.zhanghai.android.files.viewer.text.TextEditorActivity"
             android:exported="true"
             android:label="@string/text_editor_title"
@@ -347,11 +364,87 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name="me.zhanghai.android.files.viewer.media.MediaViewerActivity"
+            android:exported="true"
+            android:label="@string/media_viewer_title"
+            android:configChanges="keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout"
+            android:theme="@style/Theme.NexFiles.Immersive">
+            <intent-filter tools:ignore="AppLinkUrlError">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+            <intent-filter tools:ignore="AppLinkUrlError">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="me.zhanghai.android.files.viewer.dex.DexEditorActivity"
+            android:exported="false"
+            android:label="@string/dex_editor_title"
+            android:theme="@style/Theme.NexFiles" />
+
+        <activity
+            android:name="me.zhanghai.android.files.viewer.dex.SmaliEditorActivity"
+            android:exported="false"
+            android:label="@string/smali_editor_title"
+            android:theme="@style/Theme.NexFiles" />
+
+        <activity
+            android:name="me.zhanghai.android.files.viewer.axml.AxmlViewerActivity"
+            android:exported="false"
+            android:label="@string/axml_viewer_title"
+            android:theme="@style/Theme.NexFiles" />
+
+        <activity
+            android:name="me.zhanghai.android.files.viewer.arsc.ArscViewerActivity"
+            android:exported="false"
+            android:label="@string/arsc_viewer_title"
+            android:theme="@style/Theme.NexFiles" />
+
+        <activity
+            android:name="me.zhanghai.android.files.viewer.hex.HexViewerActivity"
+            android:exported="false"
+            android:label="@string/hex_viewer_title"
+            android:theme="@style/Theme.NexFiles" />
+
+        <activity
+            android:name="me.zhanghai.android.files.hook.HookTargetActivity"
+            android:exported="false"
+            android:label="@string/hook_target_title"
+            android:theme="@style/Theme.NexFiles" />
+
+        <activity
+            android:name="me.zhanghai.android.files.hook.HookConfigActivity"
+            android:exported="false"
+            android:label="@string/hook_config_title"
+            android:theme="@style/Theme.NexFiles" />
+
+        <activity
+            android:name="me.zhanghai.android.files.hook.HookLogActivity"
+            android:exported="false"
+            android:label="@string/hook_log_title"
+            android:theme="@style/Theme.NexFiles" />
+
+        <!-- The sandbox process: hosts an isolated ClassLoader for a target app and drives
+             lsplant against it. Runs in-process (:sandbox) so a target crash is contained. -->
+        <service
+            android:name="me.zhanghai.android.files.hook.sandbox.SandboxService"
+            android:exported="false"
+            android:process=":sandbox" />
+
         <service
             android:name="me.zhanghai.android.files.filejob.FileJobService"
             android:foregroundServiceType="dataSync" />
 
         <service android:name="me.zhanghai.android.files.ftpserver.FtpServerService"
+            android:foregroundServiceType="dataSync" />
+
+        <service android:name="me.zhanghai.android.files.webdavserver.WebDavServerService"
             android:foregroundServiceType="dataSync" />
 
         <service

@@ -79,6 +79,24 @@
                     android:layout_height="wrap_content"
                     android:inputType="textPassword" />
             </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="?dialogPreferredPadding"
+                android:layout_marginEnd="?dialogPreferredPadding"
+                android:layout_marginTop="8dp"
+                android:text="@string/file_create_archive_compression_level"
+                android:textColor="?colorAccent"
+                android:textSize="12sp" />
+
+            <Spinner
+                android:id="@+id/compressionLevelSpinner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="?dialogPreferredPadding"
+                android:paddingEnd="?dialogPreferredPadding"
+                android:entries="@array/create_archive_compression_levels" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </FrameLayout>

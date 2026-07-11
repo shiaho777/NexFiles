@@ -135,6 +135,19 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_extract_apk"
+        android:orderInCategory="100"
+        android:title="@string/file_list_action_extract_apk"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_archive_save"
+        android:orderInCategory="100"
+        android:title="@string/file_list_action_archive_save"
+        android:visible="false"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_add_bookmark"
         android:orderInCategory="100"
         android:title="@string/file_list_action_add_bookmark"

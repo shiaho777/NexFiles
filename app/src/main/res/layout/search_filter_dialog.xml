@@ -93,6 +93,16 @@
                 android:minHeight="@dimen/dense_single_line_list_item_height"
                 android:text="@string/search_option_regex"
                 android:textAppearance="?textAppearanceListItem" />
+
+            <CheckBox
+                android:id="@+id/contentCheckBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="?dialogPreferredPadding"
+                android:layout_marginEnd="?dialogPreferredPadding"
+                android:minHeight="@dimen/dense_single_line_list_item_height"
+                android:text="@string/search_option_content"
+                android:textAppearance="?textAppearanceListItem" />
         </LinearLayout>
     </ScrollView>
 </FrameLayout>

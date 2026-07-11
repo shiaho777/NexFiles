@@ -29,6 +29,9 @@ import java8.nio.file.StandardOpenOption
 import java8.nio.file.attribute.BasicFileAttributes
 import kotlinx.coroutines.runBlocking
 import me.zhanghai.android.files.R
+import me.zhanghai.android.files.apksign.ApkSigner
+import me.zhanghai.android.files.apksign.ApkSignerConfig
+import me.zhanghai.android.files.apksign.ApkSignatureStripper
 import me.zhanghai.android.files.app.BackgroundActivityStarter
 import me.zhanghai.android.files.app.mainExecutor
 import me.zhanghai.android.files.compat.mainExecutorCompat
@@ -37,6 +40,7 @@ import me.zhanghai.android.files.file.MimeType
 import me.zhanghai.android.files.file.asFileSize
 import me.zhanghai.android.files.file.fileProviderUri
 import me.zhanghai.android.files.file.loadFileItem
+import me.zhanghai.android.files.filelist.ArchiveEncryption
 import me.zhanghai.android.files.filelist.OpenFileAsDialogActivity
 import me.zhanghai.android.files.filelist.OpenFileAsDialogFragment
 import me.zhanghai.android.files.provider.archive.archiveFile
@@ -90,8 +94,10 @@ import me.zhanghai.android.files.util.putArgs
 import me.zhanghai.android.files.util.showToast
 import me.zhanghai.android.files.util.toEnumSet
 import me.zhanghai.android.files.util.withChooser
+import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream
 import java.io.ByteArrayInputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InterruptedIOException
 import kotlin.coroutines.resume
@@ -616,7 +622,9 @@ class ArchiveFileJob(
     private val archiveFile: Path,
     private val format: Int,
     private val filter: Int,
-    private val password: String?
+    private val password: String?,
+    private val encryption: ArchiveEncryption,
+    private val compressionLevel: Int?
 ) : FileJob() {
     @Throws(IOException::class)
     override fun run() {
@@ -627,7 +635,8 @@ class ArchiveFileJob(
         var successful = false
         try {
             channel.use {
-                ArchiveWriter(channel, format, filter, password).use { writer ->
+                ArchiveWriter(channel, format, filter, password, encryption, compressionLevel)
+                    .use { writer ->
                     val transferInfo = TransferInfo(scanInfo, archiveFile)
                     for (source in sources) {
                         val target = getTargetFileName(source)
@@ -950,7 +959,16 @@ class DeleteFileJob(private val paths: List<Path>) : FileJob() {
         val transferInfo = TransferInfo(scanInfo, null)
         val actionAllInfo = ActionAllInfo()
         for (path in paths) {
-            deleteRecursively(path, transferInfo, actionAllInfo)
+            // Try the recycle bin first: when applicable (local fs + feature on) we move the whole
+            // top-level entry aside in one shot, so the recursive delete below is skipped. Any
+            // failure falls through to a permanent recursive delete so the user's intent — remove
+            // the file from its current location — always succeeds.
+            if (RecycleBin.shouldRecycle(path) && RecycleBin.recycle(path)) {
+                transferInfo.incrementTransferredFileCount()
+                postDeleteNotification(transferInfo, path)
+            } else {
+                deleteRecursively(path, transferInfo, actionAllInfo)
+            }
             throwIfInterrupted()
         }
     }
@@ -1473,6 +1491,82 @@ class InstallApkJob(private val file: Path) : FileJob() {
     }
 }
 
+/**
+ * Installs a multi-package APK bundle (.apks / .xapk), which is a zip containing the base APK plus
+ * optional split APKs (per-ABI, density, language, etc.). Uses [PackageInstaller.Session] so all
+ * splits are committed atomically — either the whole app installs or nothing does, which is what
+ * these bundle formats require.
+ *
+ * Only the zip parsing + session commit happens here; the actual install confirmation still goes
+ * through the system installer UI, same as a single APK.
+ */
+class InstallSplitApksJob(private val bundleFile: Path) : FileJob() {
+    override fun run() {
+        open(
+            bundleFile, R.string.file_install_apk_from_background_title_format,
+            R.string.file_install_apk_from_background_text
+        ) { file ->
+            installSplitApks(file)
+        }
+    }
+
+    @Throws(IOException::class)
+    private fun installSplitApks(file: Path) {
+        // Extract every *.apk entry from the bundle into the cache dir, then hand them all to a
+        // single PackageInstaller session. We can't stream directly from the zip because the
+        // session API needs seekable file-based sources.
+        val packageManager = service.packageManager
+        val packageInstaller = packageManager.packageInstaller
+        val cacheDir = service.cacheDir
+        val extractedApks = mutableListOf<File>()
+
+        try {
+            file.newInputStream().use { input ->
+                ZipArchiveInputStream(input).use { zip ->
+                    var entry = zip.nextZipArchiveEntry
+                    while (entry != null) {
+                        if (entry.name.endsWith(".apk") && !entry.isDirectory) {
+                            val outFile = File(cacheDir, "split-${extractedApks.size}.apk")
+                            FileOutputStream(outFile).use { out -> zip.copyTo(out) }
+                            extractedApks.add(outFile)
+                        }
+                        entry = zip.nextZipArchiveEntry
+                    }
+                }
+            }
+            if (extractedApks.isEmpty()) {
+                throw IOException("No APK entries found in bundle")
+            }
+
+            // Create one session for the whole bundle and add each split.
+            val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
+            val sessionId = packageInstaller.createSession(params)
+            packageInstaller.openSession(sessionId).use { session ->
+                for ((index, apkFile) in extractedApks.withIndex()) {
+                    val length = apkFile.length()
+                    apkFile.inputStream().use { input ->
+                        session.openWrite("split-$index", 0, length).use { out ->
+                            input.copyTo(out)
+                            session.fsync(out)
+                        }
+                    }
+                }
+                // Commit hands off to the system installer; the user still sees the confirm dialog.
+                val intent = Intent(service, FileJobService::class.java)
+                val pendingIntent = PendingIntent.getBroadcast(
+                    service, sessionId, intent, PendingIntent.FLAG_UPDATE_CURRENT
+                        or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+                        PendingIntent.FLAG_MUTABLE else 0
+                )
+                session.commit(pendingIntent.intentSender)
+            }
+        } finally {
+            // Clean up extracted splits regardless of success/failure.
+            extractedApks.forEach { runCatching { it.delete() } }
+        }
+    }
+}
+
 class OpenFileJob(
     private val file: Path,
     private val mimeType: MimeType,
@@ -1542,6 +1636,22 @@ class RenameFileJob(private val path: Path, private val newName: String) : FileJ
     override fun run() {
         val newPath = path.resolveSibling(newName)
         rename(path, newPath)
+    }
+}
+
+/**
+ * Renames a batch of files according to pre-computed (oldPath, newName) pairs. The caller resolves
+ * the new names via [BatchRenameTemplate] and passes the resolved pairs here, so this job stays a
+ * thin driver over the existing [rename] helper — reusing its conflict/overwrite dialog flow.
+ */
+class BatchRenameFileJob(private val renamePairs: List<Pair<Path, String>>) : FileJob() {
+    @Throws(IOException::class)
+    override fun run() {
+        for ((path, newName) in renamePairs) {
+            val newPath = path.resolveSibling(newName)
+            rename(path, newPath)
+            throwIfInterrupted()
+        }
     }
 }
 
@@ -2315,6 +2425,112 @@ private fun FileJob.write(file: Path, content: ByteArray): Boolean {
         }
     } while (retry)
     return true
+}
+
+/**
+ * Strips all signatures (v1 META-INF files + v2/v3 APK Signing Block) from [sourcePath] and writes
+ * the unsigned APK to [targetPath]. The signing engine works on [java.io.File] (it needs random
+ * access + ZIP rewriting), so non-local paths (archives, SAF, remote) are staged through the cache
+ * directory transparently.
+ */
+class StripSignatureJob(
+    private val sourcePath: Path,
+    private val targetPath: Path
+) : FileJob() {
+    @Throws(IOException::class)
+    override fun run() {
+        postNotification(
+            getString(R.string.file_job_strip_signature_notification_title), null, null, null,
+            0, 0, true, false
+        )
+        try {
+            stageInOutAndRun(sourcePath, targetPath) { input, output ->
+                ApkSignatureStripper.strip(input, output)
+            }
+            showToast(R.string.file_job_strip_signature_success)
+        } catch (e: InterruptedIOException) {
+            throw e
+        } catch (e: Exception) {
+            e.printStackTrace()
+            showErrorDialog(
+                getString(R.string.file_job_strip_signature_error_title),
+                e.toString(), null, false,
+                getString(R.string.retry), getString(android.R.string.cancel), null
+            )
+        }
+    }
+}
+
+/**
+ * Signs [sourcePath] with [config] (v1/v2/v3 per its toggles) and writes the result to [targetPath].
+ * Like [StripSignatureJob], non-local paths are staged through the cache directory.
+ */
+class SignApkJob(
+    private val sourcePath: Path,
+    private val targetPath: Path,
+    private val config: ApkSignerConfig,
+    private val onResult: ((Boolean) -> Unit)?
+) : FileJob() {
+    @Throws(IOException::class)
+    override fun run() {
+        postNotification(
+            getString(R.string.file_job_sign_apk_notification_title), null, null, null,
+            0, 0, true, false
+        )
+        var success = false
+        try {
+            stageInOutAndRun(sourcePath, targetPath) { input, output ->
+                ApkSigner.sign(input, output, config)
+            }
+            success = true
+            showToast(R.string.file_job_sign_apk_success)
+        } catch (e: InterruptedIOException) {
+            throw e
+        } catch (e: Exception) {
+            e.printStackTrace()
+            showErrorDialog(
+                getString(R.string.file_job_sign_apk_error_title),
+                e.toString(), null, false,
+                getString(R.string.retry), getString(android.R.string.cancel), null
+            )
+        } finally {
+            onResult?.let { mainExecutor.execute { it(success) } }
+        }
+    }
+}
+
+/**
+ * Bridges between the project's [Path] abstraction and the [java.io.File]-based signing engine.
+ * If both [sourcePath] and [targetPath] are local Linux paths, we operate directly on their backing
+ * files. Otherwise we copy the source into a cache temp file, run [block], and (if successful)
+ * copy the result back out to the target path. Temp files are always cleaned up.
+ */
+@Throws(IOException::class)
+private fun FileJob.stageInOutAndRun(
+    sourcePath: Path, targetPath: Path, block: (File, File) -> Unit
+) {
+    if (sourcePath.isLinuxPath && targetPath.isLinuxPath) {
+        block(sourcePath.toFile(), targetPath.toFile())
+        return
+    }
+    val cacheDir = cacheDirectory
+    val inputTemp = File(cacheDir, "apk-sign-input-${System.currentTimeMillis()}.apk")
+    val outputTemp = File(cacheDir, "apk-sign-output-${System.currentTimeMillis()}.apk")
+    try {
+        // Stage input.
+        sourcePath.newInputStream().use { input ->
+            FileOutputStream(inputTemp).use { input.copyTo(it) }
+        }
+        // Run the engine on local files.
+        block(inputTemp, outputTemp)
+        // Copy output back to the (possibly remote) target path.
+        targetPath.newOutputStream().use { output ->
+            outputTemp.inputStream().use { it.copyTo(output) }
+        }
+    } finally {
+        inputTemp.delete()
+        outputTemp.delete()
+    }
 }
 
 private fun FileJob.postWriteNotification(transferInfo: TransferInfo) {

@@ -12,6 +12,10 @@
         android:title="@string/file_item_action_open_with" />
 
     <item
+        android:id="@+id/action_open_hex"
+        android:title="@string/file_item_action_open_hex" />
+
+    <item
         android:id="@+id/action_cut"
         android:title="@string/cut" />
 
@@ -34,6 +38,14 @@
     <item
         android:id="@+id/action_archive"
         android:title="@string/file_item_action_archive" />
+
+    <item
+        android:id="@+id/action_sign_apk"
+        android:title="@string/file_item_action_sign_apk" />
+
+    <item
+        android:id="@+id/action_strip_signature"
+        android:title="@string/file_item_action_strip_signature" />
 
     <item
         android:id="@+id/action_share"

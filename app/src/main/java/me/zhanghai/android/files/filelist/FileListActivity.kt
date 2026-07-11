@@ -11,16 +11,37 @@ import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContract
+import androidx.appcompat.widget.Toolbar
 import androidx.fragment.app.commit
 import java8.nio.file.Path
 import me.zhanghai.android.files.app.AppActivity
 import me.zhanghai.android.files.file.MimeType
 import me.zhanghai.android.files.util.createIntent
 import me.zhanghai.android.files.util.extraPath
+import me.zhanghai.android.files.util.hasSw600Dp
+import me.zhanghai.android.files.util.isOrientationLandscape
 import me.zhanghai.android.files.util.putArgs
 
-class FileListActivity : AppActivity() {
+class FileListActivity : AppActivity(), FileListFragmentHost {
     private lateinit var fragment: FileListFragment
+
+    override val hasSw600Dp: Boolean
+        get() = (this as android.content.Context).let { it.hasSw600Dp }
+
+    override val isLandscape: Boolean
+        get() = isOrientationLandscape
+
+    override fun setSupportToolbar(toolbar: Toolbar) {
+        setSupportActionBar(toolbar)
+    }
+
+    override fun invalidateOptionsMenu() {
+        super.invalidateOptionsMenu()
+    }
+
+    override fun finish() {
+        super.finish()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

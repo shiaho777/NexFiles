@@ -47,6 +47,18 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_checksum"
+        android:orderInCategory="100"
+        android:title="@string/file_list_select_action_checksum"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_batch_rename"
+        android:orderInCategory="100"
+        android:title="@string/file_list_select_action_batch_rename"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_share"
         android:orderInCategory="100"
         android:title="@string/share"

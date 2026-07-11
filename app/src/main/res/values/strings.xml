@@ -19,6 +19,18 @@
     <string name="empty">Empty</string>
     <string name="empty_placeholder">(Empty)</string>
     <string name="error">Error</string>
+    <string name="recycle_bin_restore">Restore</string>
+    <string name="recycle_bin_restore_success">Restored</string>
+    <string name="recycle_bin_restore_failed">Could not restore (original folder unavailable?)</string>
+    <string name="recycle_bin_restore_confirm_format">Restore “%1$s” to its original location?</string>
+    <string name="recycle_bin_delete_confirm_format">Permanently delete “%1$s”? This cannot be undone.</string>
+    <string name="recycle_bin_empty_action">Empty recycle bin</string>
+    <string name="recycle_bin_empty_confirm">Permanently delete all items in the recycle bin? This cannot be undone.</string>
+    <string name="recycle_bin_empty">Recycle bin is empty</string>
+    <string name="recycle_bin_origin_unknown">Unknown original location</string>
+    <string name="recycle_bin_item_subtitle_format">Deleted %1$s · From %2$s</string>
+    <string name="settings_view_recycle_bin_title">View recycle bin</string>
+    <string name="settings_view_recycle_bin_summary">Browse, restore, or permanently delete trashed files</string>
     <string name="hide">Hide</string>
     <string name="install">Install</string>
     <string name="keep_editing">Keep editing</string>
@@ -43,6 +55,7 @@
     <string name="search_no_results">No matching files</string>
     <string name="search_option_recursive">Search subdirectories</string>
     <string name="search_option_regex">Regular expression</string>
+    <string name="search_option_content">Search in file contents</string>
     <string name="search_filter_type">Type</string>
     <string name="search_filter_size">Size</string>
     <string name="search_filter_time">Last modified</string>
@@ -96,10 +109,49 @@
     <string name="notification_channel_file_job_description">Display and control file operations</string>
     <string name="notification_channel_ftp_server_name">FTP server</string>
     <string name="notification_channel_ftp_server_description">Display and control the FTP server</string>
+    <string name="notification_channel_webdav_server_name">WebDAV server</string>
+    <string name="notification_channel_webdav_server_description">Display and control the WebDAV server</string>
+    <string name="webdav_server_title">WebDAV server</string>
+    <string name="webdav_server_notification_title">WebDAV server</string>
+    <string name="webdav_server_notification_channel_name">WebDAV server</string>
+    <string name="webdav_server_notification_channel_description">Display and control the WebDAV server</string>
+    <string name="webdav_server_notification_text_starting">Starting…</string>
+    <string name="webdav_server_notification_text_running">Running</string>
+    <string name="webdav_server_notification_text_stopped">Stopped</string>
+    <string name="webdav_server_start_error">Failed to start WebDAV server</string>
+    <string name="webdav_server_username">Username</string>
+    <string name="webdav_server_password">Password</string>
+    <string name="webdav_server_port">Port</string>
+    <string name="webdav_server_home_directory">Shared folder</string>
+    <string name="webdav_server_state_stopped">Stopped</string>
+    <string name="webdav_server_state_starting">Starting…</string>
+    <string name="webdav_server_state_running">Running</string>
+    <string name="webdav_server_start">Start</string>
+    <string name="webdav_server_stop">Stop</string>
+    <string name="webdav_server_url_label">Address</string>
+    <string name="terminal_title">Terminal</string>
+    <string name="terminal_distro_alpine">Alpine Linux</string>
+    <string name="terminal_distro_debian">Debian</string>
+    <string name="terminal_choose_distro">Choose a distribution</string>
+    <string name="terminal_connecting">Connecting…</string>
+    <string name="terminal_downloading">Downloading…</string>
+    <string name="terminal_downloading_percent">Downloading… %1$d%%</string>
+    <string name="terminal_extracting">Extracting…</string>
+    <string name="terminal_install_failed_format">Install failed: %1$s</string>
+    <string name="terminal_shizuku_missing">Shizuku is required to run the terminal. Install and start Shizuku, then grant NexFiles permission.</string>
+    <string name="terminal_permission_denied">Shizuku permission was denied. Please grant permission in Shizuku and try again.</string>
+    <string name="terminal_requesting_permission">Requesting Shizuku permission…</string>
+    <string name="terminal_open_shizuku">Open Shizuku</string>
+    <string name="terminal_proot_missing">The proot binary is missing for this device\'s architecture. Only arm64-v8a is supported in this build.</string>
+    <string name="terminal_unavailable">Terminal service unavailable.</string>
+    <string name="terminal_toggle_keyboard">Toggle keyboard</string>
+    <string name="terminal_switch_distro">Switch distribution</string>
+    <string name="terminal_open_in_terminal">Open in terminal</string>
 
     <string name="file_action_archive_password_title">Password required</string>
     <string name="file_action_archive_password_message_format">“%1$s” is password-protected.</string>
     <string name="file_action_archive_password_error_empty">Password cannot be empty</string>
+    <string name="file_action_archive_password_remember">Remember this password for encrypted archives</string>
 
     <plurals name="file_job_archive_scan_notification_title_format">
         <item quantity="one">Preparing to compress %1$,d file (%2$s)</item>
@@ -337,6 +389,12 @@
     <string name="file_list_select_title_format">%1$,d</string>
     <string name="file_list_select_action_extract" translatable="false">@string/file_item_action_extract</string>
     <string name="file_list_select_action_archive" translatable="false">@string/file_item_action_archive</string>
+    <string name="file_list_select_action_checksum">Checksum</string>
+    <string name="file_list_select_action_batch_rename">Batch rename…</string>
+    <string name="batch_rename_title">Batch rename</string>
+    <string name="batch_rename_template_hint">Template: [name] [ext] [n]/[nn]/[nnn] [N], or s/old/new/flags</string>
+    <string name="batch_rename_empty_template">Template is empty</string>
+    <string name="batch_rename_no_change">No files need renaming</string>
     <string name="file_list_create_file_name_hint">File name</string>
     <string name="file_list_create_file_name_error_empty" translatable="false">@string/file_name_error_empty</string>
     <string name="file_list_create_file_name_error_invalid" translatable="false">@string/file_name_error_invalid</string>
@@ -542,6 +600,24 @@
     <string name="file_properties_apk_signature_digests">Signatures</string>
     <string name="file_properties_apk_signature_digests_empty">No valid signatures</string>
     <string name="file_properties_apk_past_signature_digests">Old signatures</string>
+    <string name="file_properties_apk_signatures_title">APK signatures</string>
+    <string name="file_properties_apk_signatures_view">View signatures (%1$d)</string>
+    <string name="file_properties_apk_signatures_none">No signatures</string>
+    <string name="file_properties_apk_signatures_schemes">Signing schemes</string>
+    <string name="file_properties_apk_certificate_title">Certificate details</string>
+    <string name="file_properties_apk_certificate_scheme">Signing scheme</string>
+    <string name="file_properties_apk_certificate_version">Version</string>
+    <string name="file_properties_apk_certificate_serial">Serial number</string>
+    <string name="file_properties_apk_certificate_signature_algorithm">Signature algorithm</string>
+    <string name="file_properties_apk_certificate_subject">Subject</string>
+    <string name="file_properties_apk_certificate_issuer">Issuer</string>
+    <string name="file_properties_apk_certificate_valid_from">Valid from</string>
+    <string name="file_properties_apk_certificate_valid_to">Valid to</string>
+    <string name="file_properties_apk_certificate_public_key">Public key</string>
+    <string name="file_properties_apk_certificate_public_key_format">%1$s, %2$d bits</string>
+    <string name="file_properties_apk_certificate_sha1">SHA-1 fingerprint</string>
+    <string name="file_properties_apk_certificate_sha256">SHA-256 fingerprint</string>
+    <string name="file_properties_apk_certificate_sha512">SHA-512 fingerprint</string>
     <string name="file_properties_checksum">Checksums</string>
     <string name="file_properties_checksum_compare">Compare</string>
     <string name="file_properties_checksum_compare_placeholder">Any checksum</string>
@@ -723,10 +799,18 @@
 
     <string name="archive_viewer_title">Archive viewer</string>
     <string name="image_viewer_title">Image viewer</string>
+    <string name="media_viewer_title">Media viewer</string>
+    <string name="media_viewer_playback_error">Playback error: %1$s</string>
     <string name="image_viewer_subtitle_format">%1$,d/%2$,d</string>
     <string name="image_viewer_delete_message_format" translatable="false">@string/file_delete_message_file_format</string>
     <string name="save_as_title">Save as</string>
     <string name="save_as_error">Error while saving file</string>
+    <string name="extract_apk_title">Extract installed app</string>
+    <string name="extract_apk_no_source">This app has no installable APK path</string>
+    <string name="file_list_action_extract_apk">Extract installed app</string>
+    <string name="file_list_action_archive_save">Save archive changes</string>
+    <string name="archive_save_success">Archive saved</string>
+    <string name="archive_save_failed_format">Failed to save archive: %1$s</string>
     <string name="save_as_success_format">“%1$s” has been saved to “%2$s”</string>
     <string name="text_editor_title">Text editor</string>
     <string name="text_editor_title_format">%1$s</string>
@@ -735,6 +819,14 @@
     <string name="text_editor_reload_message">Are you sure you want to reload? Unsaved changes to this document will be lost.</string>
     <string name="text_editor_encoding">Encoding</string>
     <string name="text_editor_close_message">Are you sure you want to discard unsaved changes to this document?</string>
+    <string name="text_editor_find">Find</string>
+    <string name="text_editor_find_hint">Find in file</string>
+    <string name="text_editor_find_previous">Previous match</string>
+    <string name="text_editor_find_next">Next match</string>
+    <string name="text_editor_find_close">Close find</string>
+    <string name="text_editor_find_no_results">0/0</string>
+    <string name="text_editor_find_count_format">%1$d/%2$d</string>
+    <string name="text_editor_save_as">Save as…</string>
 
     <string name="ftp_server_title">FTP server</string>
     <string name="ftp_server_state_title">Status</string>
@@ -796,6 +888,8 @@
     <string name="settings_bookmark_directory_list_title" translatable="false">@string/settings_bookmark_directories_title</string>
     <string name="settings_bookmark_directory_list_empty" translatable="false">@string/settings_bookmark_directories_summary_empty</string>
     <string name="settings_root_strategy_title">Root access mode</string>
+    <string name="settings_recycle_bin_enabled_title">Recycle bin</string>
+    <string name="settings_recycle_bin_enabled_summary">Move local files here on delete instead of removing them permanently. Files on remote/archive locations are always deleted permanently.</string>
     <plurals name="settings_root_strategy_message_format">
         <item quantity="one">You have %1$,d file operation running and changing root access mode now may result in unexpected error. Are you sure you want to change it now?</item>
         <item quantity="other">You have %1$,d file operations running and changing root access mode now may result in unexpected error. Are you sure you want to change it now?</item>
@@ -828,4 +922,165 @@
 
     <string name="shortcut_downloads_title" translatable="false">@string/navigation_standard_directory_downloads</string>
     <string name="shortcut_ftp_server_title" translatable="false">@string/ftp_server_title</string>
+
+    <string name="file_create_archive_compression_level">Compression level</string>
+    <string name="file_create_archive_encryption_none">No encryption</string>
+    <string name="file_create_archive_encryption_aes256">AES-256</string>
+    <string name="file_create_archive_compression_level_default">Default</string>
+    <string name="file_create_archive_compression_level_store">Store (no compression)</string>
+    <string name="file_create_archive_compression_level_1">1 – Fastest</string>
+    <string name="file_create_archive_compression_level_3">3</string>
+    <string name="file_create_archive_compression_level_5">5</string>
+    <string name="file_create_archive_compression_level_6">6 – Normal</string>
+    <string name="file_create_archive_compression_level_7">7</string>
+    <string name="file_create_archive_compression_level_9">9 – Best</string>
+    <string-array name="create_archive_compression_levels">
+        <item>@string/file_create_archive_compression_level_default</item>
+        <item>@string/file_create_archive_compression_level_store</item>
+        <item>@string/file_create_archive_compression_level_1</item>
+        <item>@string/file_create_archive_compression_level_3</item>
+        <item>@string/file_create_archive_compression_level_5</item>
+        <item>@string/file_create_archive_compression_level_6</item>
+        <item>@string/file_create_archive_compression_level_7</item>
+        <item>@string/file_create_archive_compression_level_9</item>
+    </string-array>
+
+    <!-- DEX editor -->
+    <string name="dex_editor_title">DEX editor</string>
+    <string name="dex_editor_empty">No entries</string>
+    <string name="dex_editor_view_classes">Classes</string>
+    <string name="dex_editor_view_strings">Strings</string>
+    <string name="dex_editor_replace_string_title">Replace string</string>
+    <string name="dex_editor_replace_string_current">Current value</string>
+    <string name="dex_editor_replace_string_new">New value</string>
+    <string name="dex_editor_replace_string_apply">Replace</string>
+    <string name="dex_editor_replace_string_empty_old">Enter a string to find first</string>
+    <string name="dex_editor_no_changes">No changes to save</string>
+    <string name="dex_editor_saved">Saved</string>
+    <string name="dex_editor_save_failed">Failed to save</string>
+
+    <!-- Runtime hook -->
+    <string name="hook_target_title">Hook target</string>
+    <string name="hook_target_confirm_message">Load %1$s into the sandbox for hooking? Its code will run inside our process, where its methods can be intercepted — no root required.</string>
+    <string name="hook_target_load">Load</string>
+    <string name="hook_target_load_failed">Failed to load: %1$s</string>
+    <string name="hook_target_init_failed">lsplant init failed: %1$s</string>
+    <string name="hook_target_loaded_title">Loaded into sandbox</string>
+    <string name="hook_target_loaded_message">%1$s is loaded and lsplant is ready. Start its Application to run its code under your hooks.</string>
+    <string name="hook_target_start">Start</string>
+    <string name="hook_target_started">Target started under hooks</string>
+    <string name="hook_target_start_failed">Failed to start: %1$s</string>
+    <string name="hook_target_injected">Injected %1$d hook(s)</string>
+    <string name="hook_target_inject_failed">Injection failed (root required, and the target must be debuggable on production Android)</string>
+
+    <!-- Hook configuration -->
+    <string name="hook_config_title">Configure hooks</string>
+    <string name="hook_config_search_hint">Search classes…</string>
+    <string name="hook_config_no_results">No results</string>
+    <string name="hook_config_connect_failed">Failed to connect to sandbox</string>
+    <string name="hook_config_hooked">Hooked: %1$s</string>
+    <string name="hook_config_hook_failed">Hook failed: %1$s</string>
+    <string name="hook_config_apply">Apply</string>
+    <string name="hook_config_start_analysis">Run</string>
+    <string name="hook_rule_return_constant">Return constant</string>
+    <string name="hook_rule_return_constant_hint">Value (string/int/bool/null)</string>
+    <string name="hook_rule_log_calls">Log calls</string>
+    <string name="hook_rule_replace_string">Replace string</string>
+    <string name="hook_rule_replace_string_hint">old value\nnew value</string>
+    <string name="hook_rule_block_call">Block call</string>
+
+    <!-- Hook log viewer -->
+    <string name="hook_log_title">Hook activity</string>
+    <string name="hook_log_empty">No hook activity yet. Hooks fire when the target calls a hooked method.</string>
+
+    <!-- Hook presets -->
+    <string name="hook_preset_menu">Presets</string>
+    <string name="hook_preset_applied">%1$d hook(s) applied, %2$d failed</string>
+    <string name="hook_preset_bypass_root_title">Bypass root detection</string>
+    <string name="hook_preset_bypass_root_desc">Hooks File.exists(), Runtime.exec(), Build.TAGS and package queries to hide root. Applies LOG_CALLS to detect what the target checks.</string>
+    <string name="hook_preset_bypass_debug_title">Bypass debug detection</string>
+    <string name="hook_preset_bypass_debug_desc">Makes Debug.isDebuggerConnected() return false and logs signature checks.</string>
+    <string name="hook_preset_log_network_title">Log network requests</string>
+    <string name="hook_preset_log_network_desc">Hooks URL/URI constructors, OkHttp, and HttpURLConnection to log every endpoint the target contacts.</string>
+    <string name="hook_preset_log_prefs_title">Log SharedPreferences</string>
+    <string name="hook_preset_log_prefs_desc">Hooks SharedPreferences getString/getBoolean/putString to reveal what the target stores locally (tokens, flags, gates).</string>
+
+    <!-- APK signing / stripping -->
+    <string name="file_item_action_sign_apk">Sign</string>
+    <string name="file_item_action_strip_signature">Strip signature</string>
+    <string name="sign_apk_title">Sign APK</string>
+    <string name="sign_apk_scheme">Signing schemes</string>
+    <string name="sign_apk_scheme_v1">V1 (JAR)</string>
+    <string name="sign_apk_scheme_v2">V2 (Android 7+)</string>
+    <string name="sign_apk_scheme_v3">V3 (Android 9+, key rotation)</string>
+    <string name="sign_apk_certificate">Certificate</string>
+    <string name="sign_apk_certificate_default">Built-in default</string>
+    <string name="sign_apk_output_name">Output file name</string>
+    <string name="sign_apk_no_scheme_selected">Select at least one signing scheme</string>
+    <string name="file_job_sign_apk_notification_title">Signing APK…</string>
+    <string name="file_job_sign_apk_success">APK signed successfully</string>
+    <string name="file_job_sign_apk_error_title">Signing failed</string>
+    <string name="file_job_strip_signature_notification_title">Stripping signatures…</string>
+    <string name="file_job_strip_signature_success">Signatures stripped successfully</string>
+    <string name="file_job_strip_signature_error_title">Stripping failed</string>
+
+    <!-- AXML viewer -->
+    <string name="axml_viewer_title">Binary XML</string>
+
+    <!-- ARSC viewer -->
+    <string name="arsc_viewer_title">Resource table</string>
+    <string name="arsc_viewer_empty">No resources found</string>
+
+    <!-- DEX class detail -->
+    <string name="dex_class_detail_fields">Fields</string>
+    <string name="dex_class_detail_methods">Methods</string>
+    <string name="dex_rename_title">Rename</string>
+    <string name="dex_rename_current">Current name</string>
+    <string name="dex_rename_new">New name</string>
+    <string name="dex_rename_apply">Rename</string>
+    <string name="dex_rename_success">Renamed %1$d reference(s)</string>
+    <string name="dex_edit_method_title">Edit method signature</string>
+    <string name="dex_edit_method_parameters">Parameters (e.g. Ljava/lang/String;I)</string>
+    <string name="dex_edit_method_return_type">Return type (e.g. V or Ljava/lang/String;)</string>
+    <string name="dex_member_rename">Rename</string>
+    <string name="dex_member_edit_signature">Edit signature</string>
+    <string name="dex_member_delete">Delete</string>
+    <string name="dex_delete_confirm">Delete this method? Calls to it will become invalid.</string>
+
+    <!-- Smali editor (P2) -->
+    <string name="smali_editor_title">Edit smali</string>
+    <string name="smali_editor_saved">Smali saved successfully</string>
+    <string name="smali_editor_save_failed">Failed to save smali</string>
+    <string name="smali_editor_not_loaded">DEX not loaded yet</string>
+    <string name="smali_editor_assemble_failed">Failed to assemble smali — check for syntax errors</string>
+
+    <!-- ARSC editor (P2) -->
+    <string name="arsc_edit_current_value">Current value</string>
+    <string name="arsc_edit_new_value">New value</string>
+    <string name="arsc_viewer_cannot_edit_type">Only string resources can be edited directly</string>
+
+    <!-- Hex viewer/editor (P0) -->
+    <string name="file_item_action_open_hex">Open as hex</string>
+    <string name="hex_viewer_title">Hex viewer</string>
+    <string name="hex_viewer_read_only">File too large for editing — view only</string>
+    <string name="hex_viewer_no_changes">No changes to save</string>
+    <string name="hex_viewer_saved">Changes saved</string>
+    <string name="hex_viewer_save_failed">Failed to save changes</string>
+    <string name="hex_edit_title_format">Edit byte at 0x%1$X</string>
+    <string name="hex_edit_current_value">Current (hex)</string>
+    <string name="hex_edit_new_value">New value (2-digit hex, e.g. FF)</string>
+
+    <!-- Hex viewer: go-to-offset (added in polish pass) -->
+    <string name="hex_viewer_go_to_offset">Go to offset</string>
+    <string name="hex_viewer_offset_out_of_range">Offset out of range</string>
+    <string name="hex_goto_current_hint">Valid range (hex)</string>
+    <string name="hex_goto_new_hint">Offset (hex, e.g. 1A2B)</string>
+
+    <!-- AXML viewer/editor: dedicated strings (polish pass) -->
+    <string name="axml_viewer_saved">Binary XML saved</string>
+    <string name="axml_viewer_save_failed">Failed to save binary XML</string>
+
+    <!-- ARSC viewer/editor: dedicated strings (polish pass) -->
+    <string name="arsc_viewer_saved">Resource table saved</string>
+    <string name="arsc_viewer_save_failed">Failed to save resource table</string>
 </resources>

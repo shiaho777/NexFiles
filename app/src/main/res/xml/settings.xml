@@ -82,6 +82,44 @@
             android:entryValues="@array/pref_entry_values_root_strategy"
             app:useSimpleSummaryProvider="true" />
 
+        <SwitchPreferenceCompat
+            android:key="@string/pref_key_recycle_bin_enabled"
+            android:title="@string/settings_recycle_bin_enabled_title"
+            android:summary="@string/settings_recycle_bin_enabled_summary"
+            android:defaultValue="@bool/pref_default_value_recycle_bin_enabled" />
+
+        <Preference
+            android:key="key_view_recycle_bin"
+            android:title="@string/settings_view_recycle_bin_title"
+            android:summary="@string/settings_view_recycle_bin_summary" />
+
+        <PreferenceCategory android:title="@string/webdav_server_title">
+            <SwitchPreferenceCompat
+                android:key="key_webdav_server_running"
+                android:title="@string/webdav_server_start"
+                android:disableDependentsState="false" />
+
+            <EditTextPreference
+                android:key="@string/pref_key_webdav_server_username"
+                android:title="@string/webdav_server_username"
+                android:defaultValue="@string/pref_default_value_webdav_server_username" />
+
+            <EditTextPreference
+                android:key="@string/pref_key_webdav_server_password"
+                android:title="@string/webdav_server_password"
+                android:defaultValue="@string/pref_default_value_empty" />
+
+            <me.zhanghai.android.files.settings.NonNegativeIntegerPreference
+                android:key="@string/pref_key_webdav_server_port"
+                android:title="@string/webdav_server_port"
+                android:defaultValue="@integer/pref_default_value_webdav_server_port"
+                app:useSimpleSummaryProvider="true" />
+
+            <me.zhanghai.android.files.settings.PathPreference
+                android:key="@string/pref_key_webdav_server_home_directory"
+                android:title="@string/webdav_server_home_directory" />
+        </PreferenceCategory>
+
         <me.zhanghai.android.files.settings.CharsetPreference
             android:key="@string/pref_key_archive_file_name_encoding"
             android:title="@string/settings_archive_file_name_encoding_title"

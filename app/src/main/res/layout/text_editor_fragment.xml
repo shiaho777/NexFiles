@@ -25,6 +25,10 @@
             android:layout_width="match_parent"
             android:layout_height="?actionBarSize"
             app:popupTheme="?actionBarPopupTheme" />
+
+        <include
+            android:id="@+id/findBar"
+            layout="@layout/text_editor_find_bar" />
     </me.zhanghai.android.files.ui.CoordinatorAppBarLayout>
 
     <me.zhanghai.android.files.ui.CoordinatorScrollingFrameLayout

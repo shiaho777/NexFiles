@@ -8,6 +8,15 @@ package me.zhanghai.android.files.file
 val MimeType.isApk: Boolean
     get() = this == MimeType.APK
 
+/**
+ * Whether this MIME type denotes an Android DEX file. The platform has no canonical DEX MIME
+ * type, so we also match the common `application/x-dex` / `vnd.android.dex` variants that some
+ * servers send. The authoritative check is the 8-byte `dex\n` magic, performed by the editor
+ * itself on open.
+ */
+val MimeType.isDex: Boolean
+    get() = value == "application/x-dex" || value == "application/vnd.android.dex"
+
 val MimeType.isSupportedArchive: Boolean
     get() = this in supportedArchiveMimeTypes
 

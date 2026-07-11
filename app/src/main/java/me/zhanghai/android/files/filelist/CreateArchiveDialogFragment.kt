@@ -11,6 +11,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.widget.EditText
 import android.widget.RadioGroup
+import android.widget.Spinner
 import androidx.annotation.StringRes
 import androidx.core.view.isGone
 import androidx.fragment.app.Fragment
@@ -98,7 +99,18 @@ class CreateArchiveDialogFragment : FileNameDialogFragment() {
         } else {
             null
         }
-        listener.archive(args.files, name, format, filter, password)
+        // Encryption only applies (and is only offered) for zip with a password. We pass AES-256
+        // whenever a password is set so that new archives are never left with the breakable
+        // legacy ZipCrypto.
+        val encryption = if (password != null && isPasswordSupported) {
+            ArchiveEncryption.AES256
+        } else {
+            ArchiveEncryption.NONE
+        }
+        val compressionLevel = compressionLevels[binding.compressionLevelSpinner.selectedItemPosition]
+        listener.archive(
+            args.files, name, format, filter, password, encryption, compressionLevel
+        )
     }
 
     companion object {
@@ -116,7 +128,8 @@ class CreateArchiveDialogFragment : FileNameDialogFragment() {
         nameEdit: EditText,
         val typeGroup: RadioGroup,
         val passwordLayout: TextInputLayout,
-        val passwordEdit: TextInputEditText
+        val passwordEdit: TextInputEditText,
+        val compressionLevelSpinner: Spinner
     ) : NameDialogFragment.Binding(root, nameLayout, nameEdit) {
         companion object {
             fun inflate(inflater: LayoutInflater): Binding {
@@ -125,13 +138,28 @@ class CreateArchiveDialogFragment : FileNameDialogFragment() {
                 val nameBinding = NameDialogNameIncludeBinding.bind(bindingRoot)
                 return Binding(
                     bindingRoot, nameBinding.nameLayout, nameBinding.nameEdit, binding.typeGroup,
-                    binding.passwordLayout, binding.passwordEdit
+                    binding.passwordLayout, binding.passwordEdit, binding.compressionLevelSpinner
                 )
             }
         }
     }
 
     interface Listener : FileNameDialogFragment.Listener {
-        fun archive(files: FileItemSet, name: String, format: Int, filter: Int, password: String?)
+        fun archive(
+            files: FileItemSet,
+            name: String,
+            format: Int,
+            filter: Int,
+            password: String?,
+            encryption: ArchiveEncryption,
+            compressionLevel: Int?
+        )
+    }
+
+    companion object {
+        // Levels map 1:1 to the spinner entries in the layout. null means "use libarchive's
+        // default", which we keep as the first entry so casual users get sane behaviour without
+        // having to understand compression levels.
+        private val compressionLevels = listOf<Int?>(null, 0, 1, 3, 5, 6, 7, 9)
     }
 }

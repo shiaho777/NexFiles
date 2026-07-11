@@ -26,7 +26,9 @@ data class SearchFilterOptions(
     val minSize: Long? = null,
     val maxSize: Long? = null,
     val startTime: Long? = null,
-    val endTime: Long? = null
+    val endTime: Long? = null,
+    /** When true, the search also matches file contents (grep-style), not just names. */
+    val searchContent: Boolean = false
 ) : Parcelable {
     /**
      * Whether any filter beyond the name pattern is set. Used by the UI to badge the filter button
@@ -34,7 +36,7 @@ data class SearchFilterOptions(
      */
     val hasAttributeFilters: Boolean
         get() = mimeType != null || minSize != null || maxSize != null ||
-            startTime != null || endTime != null || !isRecursive
+            startTime != null || endTime != null || !isRecursive || searchContent
 
     companion object {
         val DEFAULT = SearchFilterOptions()

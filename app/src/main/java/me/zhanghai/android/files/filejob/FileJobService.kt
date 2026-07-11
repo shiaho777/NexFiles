@@ -12,6 +12,8 @@ import android.os.IBinder
 import androidx.annotation.MainThread
 import java8.nio.file.Path
 import me.zhanghai.android.files.file.MimeType
+import me.zhanghai.android.files.apksign.ApkSignerConfig
+import me.zhanghai.android.files.filelist.ArchiveEncryption
 import me.zhanghai.android.files.provider.common.PosixFileModeBit
 import me.zhanghai.android.files.provider.common.PosixGroup
 import me.zhanghai.android.files.provider.common.PosixUser
@@ -118,9 +120,15 @@ class FileJobService : Service() {
             format: Int,
             filter: Int,
             password: String?,
+            encryption: ArchiveEncryption,
+            compressionLevel: Int?,
             context: Context
         ) {
-            startJob(ArchiveFileJob(sources, archiveFile, format, filter, password), context)
+            startJob(
+                ArchiveFileJob(
+                    sources, archiveFile, format, filter, password, encryption, compressionLevel
+                ), context
+            )
         }
 
         fun copy(sources: List<Path>, targetDirectory: Path, context: Context) {
@@ -143,12 +151,28 @@ class FileJobService : Service() {
             startJob(InstallApkJob(file), context)
         }
 
+        /**
+         * Installs a split-APK bundle (.apks / .xapk) via a single PackageInstaller session so all
+         * splits land atomically. See [InstallSplitApksJob].
+         */
+        fun installSplitApks(bundleFile: Path, context: Context) {
+            startJob(InstallSplitApksJob(bundleFile), context)
+        }
+
         fun open(file: Path, mimeType: MimeType, withChooser: Boolean, context: Context) {
             startJob(OpenFileJob(file, mimeType, withChooser), context)
         }
 
         fun rename(path: Path, newName: String, context: Context) {
             startJob(RenameFileJob(path, newName), context)
+        }
+
+        /**
+         * Batch-renames files per the pre-resolved [renamePairs] (old path → new name). Names are
+         * computed via [BatchRenameTemplate] before this call so the job stays a pure driver.
+         */
+        fun batchRename(renamePairs: List<Pair<Path, String>>, context: Context) {
+            startJob(BatchRenameFileJob(renamePairs), context)
         }
 
         fun restoreSeLinuxContext(path: Path, recursive: Boolean, context: Context) {
@@ -193,6 +217,26 @@ class FileJobService : Service() {
             listener: ((Boolean) -> Unit)?
         ) {
             startJob(WriteFileJob(file, content, listener), context)
+        }
+
+        /**
+         * Strips all signatures from [sourcePath], writing the unsigned APK to [targetPath].
+         */
+        fun stripApkSignature(sourcePath: Path, targetPath: Path, context: Context) {
+            startJob(StripSignatureJob(sourcePath, targetPath), context)
+        }
+
+        /**
+         * Signs [sourcePath] with [config] and writes the signed APK to [targetPath].
+         */
+        fun signApk(
+            sourcePath: Path,
+            targetPath: Path,
+            config: ApkSignerConfig,
+            context: Context,
+            listener: ((Boolean) -> Unit)?
+        ) {
+            startJob(SignApkJob(sourcePath, targetPath, config, listener), context)
         }
 
         @MainThread

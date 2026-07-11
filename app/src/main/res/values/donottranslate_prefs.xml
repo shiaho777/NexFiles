@@ -19,6 +19,18 @@
     <string name="pref_default_value_file_list_view_type">0</string>
     <string name="pref_key_file_list_sort_options">key_file_list_sort_options</string>
     <string name="pref_key_create_archive_type">key_create_archive_type</string>
+    <string name="pref_key_archive_passwords">key_archive_passwords</string>
+    <string-array name="pref_default_value_archive_passwords">
+    </string-array>
+    <string name="pref_key_recycle_bin_enabled">key_recycle_bin_enabled</string>
+    <bool name="pref_default_value_recycle_bin_enabled">true</bool>
+    <string name="pref_key_recent_directories">key_recent_directories</string>
+    <string name="pref_key_webdav_server_port">key_webdav_server_port</string>
+    <integer name="pref_default_value_webdav_server_port">8080</integer>
+    <string name="pref_key_webdav_server_username">key_webdav_server_username</string>
+    <string name="pref_key_webdav_server_password">key_webdav_server_password</string>
+    <string name="pref_key_webdav_server_home_directory">key_webdav_server_home_directory</string>
+    <string name="pref_default_value_webdav_server_username">android</string>
 
     <string name="pref_key_ftp_server_state">key_ftp_server_state</string>
     <bool name="pref_visible_ftp_server_add_tile">false</bool>

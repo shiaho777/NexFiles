@@ -60,6 +60,7 @@ class SearchFilterDialogFragment : AppCompatDialogFragment() {
         bindSpinners(context, filter)
         binding.recursiveCheckBox.isChecked = filter.isRecursive
         binding.regexCheckBox.isChecked = filter.isRegex
+        binding.contentCheckBox.isChecked = filter.searchContent
         return MaterialAlertDialogBuilder(context, theme)
             .setTitle(R.string.search_filter_title)
             .setView(binding.root)
@@ -81,6 +82,7 @@ class SearchFilterDialogFragment : AppCompatDialogFragment() {
         val filter = SearchFilterOptions(
             isRecursive = binding.recursiveCheckBox.isChecked,
             isRegex = binding.regexCheckBox.isChecked,
+            searchContent = binding.contentCheckBox.isChecked,
             mimeType = type,
             minSize = sizeRange.first,
             maxSize = sizeRange.second,

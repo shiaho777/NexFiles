@@ -15,11 +15,13 @@ import java8.nio.file.Path
 import me.zhanghai.android.files.file.FileItem
 import me.zhanghai.android.files.filelist.FileSortOptions.By
 import me.zhanghai.android.files.filelist.FileSortOptions.Order
+import me.zhanghai.android.files.navigation.RecentDirectories
 import me.zhanghai.android.files.provider.archive.archiveRefresh
 import me.zhanghai.android.files.provider.archive.isArchivePath
 import me.zhanghai.android.files.provider.common.SearchOptions
 import me.zhanghai.android.files.util.CloseableLiveData
 import me.zhanghai.android.files.util.Stateful
+import me.zhanghai.android.files.util.Success
 import me.zhanghai.android.files.util.valueCompat
 import java.io.Closeable
 
@@ -31,11 +33,28 @@ class FileListViewModel : ViewModel() {
     val pendingState: Parcelable?
         get() = trailLiveData.valueCompat.pendingState
 
-    fun navigateTo(lastState: Parcelable, path: Path) = trailLiveData.navigateTo(lastState, path)
+    fun navigateTo(lastState: Parcelable, path: Path) {
+        trailLiveData.navigateTo(lastState, path)
+        recordRecent(path)
+    }
 
-    fun resetTo(path: Path) = trailLiveData.resetTo(path)
+    fun resetTo(path: Path) {
+        trailLiveData.resetTo(path)
+        recordRecent(path)
+    }
 
-    fun navigateUp(): Boolean = trailLiveData.navigateUp()
+    fun navigateUp(): Boolean {
+        val navigated = trailLiveData.navigateUp()
+        if (navigated) {
+            recordRecent(currentPath)
+        }
+        return navigated
+    }
+
+    // Records every directory the user lands in, so the navigation drawer can offer one-tap return.
+    private fun recordRecent(path: Path) {
+        RecentDirectories.record(path)
+    }
 
     val currentPathLiveData = trailLiveData.map { it.currentPath }
     val currentPath: Path
@@ -61,6 +80,9 @@ class FileListViewModel : ViewModel() {
         if (_searchFilterLiveData.valueCompat == filter) {
             return
         }
+        // A filter change invalidates the cached base set: size/time/type constraints differ, so
+        // refining the old set would give wrong results. The next query keystroke will re-walk.
+        baseSearchResult = null
         _searchFilterLiveData.value = filter
     }
 
@@ -73,6 +95,8 @@ class FileListViewModel : ViewModel() {
         if (searchState.isSearching && searchState.options == options) {
             return
         }
+        // A fresh search discards any cached base result set used for in-result refinement.
+        baseSearchResult = null
         _searchStateLiveData.value = SearchState(true, options)
     }
 
@@ -80,6 +104,45 @@ class FileListViewModel : ViewModel() {
     fun search(query: String) {
         search(buildOptions(query))
     }
+
+    /**
+     * Snapshot of the last completed traversal, kept so that [refine] can narrow it without
+     * re-walking the tree. Cleared whenever a new search is launched or the search ends.
+     */
+    private var baseSearchResult: List<FileItem>? = null
+
+    /**
+     * Whether in-result refinement is available right now (a completed search with a cached base
+     * set). The fragment uses this to enable the "filter in results" toggle.
+     */
+    val canRefine: Boolean
+        get() = baseSearchResult != null
+
+    /**
+     * Narrows the current search results to those whose name also matches [query], reusing the
+     * cached base set instead of re-walking. Only valid while [canRefine] is true; falls back to a
+     * full [search] otherwise.
+     */
+    fun refine(query: String) {
+        val base = baseSearchResult
+        if (base == null) {
+            search(query)
+            return
+        }
+        val options = buildOptions(query)
+        // Name filtering only: size/time/type already applied when the base set was produced, and
+        // re-applying them would be a no-op against already-filtered items.
+        val refined = base.filter { options.matchesName(it.name) }
+        // Guard the searchState update so the SwitchMap does not swap in a new traversal source.
+        isRefining = true
+        _searchStateLiveData.value = SearchState(true, options)
+        _fileListLiveData.value = Success(refined)
+        isRefining = false
+    }
+
+    // True only during a refine() call; the SwitchMap checks this to avoid relaunching traversal.
+    @Volatile
+    private var isRefining = false
 
     /**
      * Builds [SearchOptions] from the current query and the editable filter. Used by the fragment
@@ -96,7 +159,8 @@ class FileListViewModel : ViewModel() {
             minSize = filter.minSize,
             maxSize = filter.maxSize,
             startTime = filter.startTime,
-            endTime = filter.endTime
+            endTime = filter.endTime,
+            searchContent = filter.searchContent
         )
     }
 
@@ -105,6 +169,7 @@ class FileListViewModel : ViewModel() {
         if (!searchState.isSearching) {
             return
         }
+        baseSearchResult = null
         _searchStateLiveData.value = SearchState.DEFAULT
     }
 
@@ -120,6 +185,8 @@ class FileListViewModel : ViewModel() {
         if (path.isArchivePath) {
             path.archiveRefresh()
         }
+        // Drop cached directory sizes so they recompute against the refreshed listing.
+        DirectorySizeCalculator.clear()
         _fileListLiveData.reload()
     }
 
@@ -300,6 +367,12 @@ class FileListViewModel : ViewModel() {
         }
 
         private fun updateSource() {
+            // A refine() updates searchState too (so the query/highlight follow), but it has
+            // already produced the filtered list itself; relaunching the traversal here would
+            // discard that work and re-walk the tree. Skip the source swap in that case.
+            if (isRefining) {
+                return
+            }
             liveData?.let {
                 removeSource(it)
                 it.close()
@@ -312,7 +385,24 @@ class FileListViewModel : ViewModel() {
                 FileListLiveData(path)
             }
             this.liveData = liveData
-            addSource(liveData) { value = it }
+            addSource(liveData) {
+                // Cache the completed traversal so refine() can narrow it without re-walking.
+                if (liveData is SearchFileListLiveData && it is Success) {
+                    baseSearchResult = it.value
+                }
+                // Kick off async directory-size computation for any directories in the new list,
+                // so folders show their true recursive size once computed.
+                if (it is Success) {
+                    val directories = it.value.asSequence()
+                        .filter { file -> file.attributes.isDirectory }
+                        .map { file -> file.path }
+                        .toList()
+                    if (directories.isNotEmpty()) {
+                        DirectorySizeCalculator.requestSizes(directories)
+                    }
+                }
+                value = it
+            }
         }
 
         fun reload() {

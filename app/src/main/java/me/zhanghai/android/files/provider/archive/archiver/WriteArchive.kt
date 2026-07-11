@@ -8,6 +8,7 @@ package me.zhanghai.android.files.provider.archive.archiver
 import java8.nio.channels.SeekableByteChannel
 import java8.nio.charset.StandardCharsets
 import java8.nio.file.attribute.FileTime
+import me.zhanghai.android.files.filelist.ArchiveEncryption
 import me.zhanghai.android.files.provider.common.PosixFileModeBit
 import me.zhanghai.android.files.provider.common.PosixFileType
 import me.zhanghai.android.files.provider.common.PosixGroup
@@ -25,7 +26,9 @@ class WriteArchive @Throws(ArchiveException::class) constructor(
     channel: SeekableByteChannel,
     format: Int,
     filter: Int,
-    password: String?
+    password: String?,
+    encryption: ArchiveEncryption,
+    compressionLevel: Int?
 ) : Closeable {
     private val archive = Archive.writeNew()
 
@@ -36,11 +39,24 @@ class WriteArchive @Throws(ArchiveException::class) constructor(
             Archive.writeSetBytesInLastBlock(archive, 1)
             Archive.writeSetFormat(archive, format)
             Archive.writeAddFilter(archive, filter)
-            if (password != null) {
+            // Compression level applies to the filter (deflate / xz / zstd ...). libarchive accepts
+            // "compression-level" as a filter option; a null level leaves libarchive's default.
+            if (compressionLevel != null) {
+                Archive.writeSetFilterOption(
+                    archive, null, "compression-level".toByteArray(),
+                    compressionLevel.toString().toByteArray()
+                )
+            }
+            if (password != null && encryption.isEnabled) {
                 require(format == Archive.FORMAT_ZIP)
                 Archive.writeSetPassphrase(archive, password.toByteArray())
+                // Prefer AES-256 over the legacy ZipCrypto: the latter is trivially breakable and
+                // offers no real protection. libarchive needs to be built with a crypto provider
+                // (mbedTLS here) for AES to be available on the zip format.
                 Archive.writeSetFormatOption(
-                    archive, null, "encryption".toByteArray(), "zipcrypt".toByteArray()
+                    archive, null, "encryption".toByteArray(),
+                    if (encryption == ArchiveEncryption.AES256) "aes256".toByteArray()
+                    else "zipcrypt".toByteArray()
                 )
             }
             Archive.writeOpen(

@@ -15,11 +15,17 @@ class FilePropertiesApkTabViewModel(path: Path) : ViewModel() {
     val apkInfoLiveData: LiveData<Stateful<ApkInfo>>
         get() = _apkInfoLiveData
 
+    private val _apkSignatureLiveData = ApkSignatureLiveData(path)
+    val apkSignatureLiveData: LiveData<Stateful<ApkSignatureInfo>>
+        get() = _apkSignatureLiveData
+
     fun reload() {
         _apkInfoLiveData.loadValue()
+        _apkSignatureLiveData.loadValue()
     }
 
     override fun onCleared() {
         _apkInfoLiveData.close()
+        _apkSignatureLiveData.close()
     }
 }

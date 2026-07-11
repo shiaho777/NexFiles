@@ -7,6 +7,9 @@ package me.zhanghai.android.files.viewer.text
 
 import android.content.Intent
 import android.os.Bundle
+import android.text.Spannable
+import android.text.SpannableStringBuilder
+import android.text.style.BackgroundColorSpan
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuInflater
@@ -17,6 +20,7 @@ import android.view.ViewGroup
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.children
+import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -25,6 +29,7 @@ import kotlinx.coroutines.launch
 import kotlinx.parcelize.Parcelize
 import me.zhanghai.android.files.R
 import me.zhanghai.android.files.databinding.TextEditorFragmentBinding
+import me.zhanghai.android.files.filelist.FileListActivity
 import me.zhanghai.android.files.ui.ThemedFastScroller
 import me.zhanghai.android.files.util.ActionState
 import me.zhanghai.android.files.util.DataState
@@ -53,6 +58,20 @@ class TextEditorFragment : Fragment(), ConfirmReloadDialogFragment.Listener,
     private lateinit var onBackPressedCallback: OnBackPressedCallback
 
     private var isSettingText = false
+
+    // In-editor find state. Matches are stored as start/end index pairs into the editable text;
+    // currentIndex points at the highlighted one. We re-scan on every query change but not on
+    // every keystroke inside the editor (editing collapses the find session).
+    private val findMatches = mutableListOf<IntRange>()
+    private var findCurrentIndex = -1
+
+    // Picks a destination path via the file list, then writes the current editor text to it.
+    private val saveAsLauncher =
+        registerForActivityResult(FileListActivity.CreateFileContract(), ::onSaveAsResult)
+
+    // Holds the editor text between launching the save-as picker and receiving its result, since
+    // the picker only returns the chosen path.
+    private var pendingSaveAsText: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -123,7 +142,14 @@ class TextEditorFragment : Fragment(), ConfirmReloadDialogFragment.Listener,
                 return@doAfterTextChanged
             }
             viewModel.isTextChanged.value = true
+            // Editing invalidates any in-flight find session; clear it so stale spans are removed
+            // before the next search.
+            if (findMatches.isNotEmpty()) {
+                clearFind()
+            }
         }
+
+        setUpFindBar()
 
         // TODO: Request storage permission if not granted.
     }
@@ -151,6 +177,14 @@ class TextEditorFragment : Fragment(), ConfirmReloadDialogFragment.Listener,
         when (item.itemId) {
             R.id.action_save -> {
                 save()
+                true
+            }
+            R.id.action_find -> {
+                showFindBar()
+                true
+            }
+            R.id.action_save_as -> {
+                saveAs()
                 true
             }
             R.id.action_reload -> {
@@ -255,6 +289,145 @@ class TextEditorFragment : Fragment(), ConfirmReloadDialogFragment.Listener,
     private fun save() {
         val text = binding.textEdit.text.toString()
         viewModel.writeFile(argsFile, text, requireContext())
+    }
+
+    private fun saveAs() {
+        // Carry the current editor text (including unsaved edits) into the new file, rather than
+        // copying the on-disk original.
+        val text = binding.textEdit.text.toString()
+        val fileName = viewModel.file.value.fileName.toString()
+        val mimeType = me.zhanghai.android.files.file.MimeType.TEXT_PLAIN
+        saveAsLauncher.launch(Triple(mimeType, fileName, argsFile.parent))
+        pendingSaveAsText = text
+    }
+
+    private fun onSaveAsResult(target: Path?) {
+        val text = pendingSaveAsText
+        pendingSaveAsText = null
+        if (target == null || text == null) {
+            return
+        }
+        viewModel.writeFile(target, text, requireContext())
+    }
+
+    private fun setUpFindBar() {
+        val findBar = binding.findBar
+        findBar.findEdit.doAfterTextChanged { performFind() }
+        findBar.findPreviousButton.setOnClickListener { findPrevious() }
+        findBar.findNextButton.setOnClickListener { findNext() }
+        findBar.findCloseButton.setOnClickListener { hideFindBar() }
+        findBar.findEdit.setOnEditorActionListener { _, _, _ ->
+            findNext()
+            true
+        }
+    }
+
+    private fun showFindBar() {
+        binding.findBar.isVisible = true
+        binding.findBar.findEdit.requestFocus()
+    }
+
+    private fun hideFindBar() {
+        binding.findBar.isVisible = false
+        clearFind()
+    }
+
+    private fun clearFind() {
+        findMatches.clear()
+        findCurrentIndex = -1
+        binding.findBar.findCountText.text = null
+        binding.findBar.findCountText.isVisible = false
+        // Strip any highlight span we added; the underlying text is untouched.
+        val editable = binding.textEdit.text
+        val spans = editable.getSpans(0, editable.length, BackgroundColorSpan::class.java)
+        for (span in spans) {
+            editable.removeSpan(span)
+        }
+    }
+
+    private fun performFind() {
+        val query = binding.findBar.findEdit.text.toString()
+        val editable = binding.textEdit.text
+        clearFind()
+        if (query.isEmpty()) {
+            return
+        }
+        var index = 0
+        while (true) {
+            val found = editable.indexOf(query, index, ignoreCase = true)
+            if (found < 0) {
+                break
+            }
+            findMatches.add(found until found + query.length)
+            index = found + query.length
+        }
+        if (findMatches.isEmpty()) {
+            binding.findBar.findCountText.text = getString(R.string.text_editor_find_no_results)
+            binding.findBar.findCountText.isVisible = true
+            return
+        }
+        // Start from the current caret position, so repeated finds march forward naturally.
+        val caret = binding.textEdit.selectionStart.coerceAtLeast(0)
+        findCurrentIndex = findMatches.indexOfFirst { it.first >= caret }.let {
+            if (it < 0) 0 else it
+        }
+        applyCurrentMatchHighlight()
+    }
+
+    private fun findNext() {
+        if (findMatches.isEmpty()) {
+            performFind()
+            return
+        }
+        findCurrentIndex = (findCurrentIndex + 1) % findMatches.size
+        applyCurrentMatchHighlight()
+    }
+
+    private fun findPrevious() {
+        if (findMatches.isEmpty()) {
+            performFind()
+            return
+        }
+        findCurrentIndex = if (findCurrentIndex <= 0) findMatches.lastIndex else findCurrentIndex - 1
+        applyCurrentMatchHighlight()
+    }
+
+    private fun applyCurrentMatchHighlight() {
+        if (findCurrentIndex !in findMatches.indices) {
+            return
+        }
+        val editable = binding.textEdit.text
+        // Remove only the spans we own (background highlights), leaving selection untouched.
+        val spans = editable.getSpans(0, editable.length, BackgroundColorSpan::class.java)
+        for (span in spans) {
+            editable.removeSpan(span)
+        }
+        val range = findMatches[findCurrentIndex]
+        editable.setSpan(
+            BackgroundColorSpan(highlightColor), range.first, range.last + 1,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        // Move the caret and scroll so the match is visible.
+        binding.textEdit.requestFocus()
+        binding.textEdit.setSelection(range.first, range.last + 1)
+        val layout = binding.textEdit.layout
+        if (layout != null) {
+            val line = layout.getLineForOffset(range.first)
+            val lineTop = layout.getLineTop(line)
+            binding.scrollView.smoothScrollTo(0, lineTop)
+        }
+        binding.findBar.findCountText.text = getString(
+            R.string.text_editor_find_count_format, findCurrentIndex + 1, findMatches.size
+        )
+        binding.findBar.findCountText.isVisible = true
+    }
+
+    private val highlightColor: Int by lazy {
+        val tv = android.util.TypedValue()
+        requireContext().theme.resolveAttribute(
+            android.R.attr.colorControlHighlight, tv, true
+        )
+        if (tv.type >= android.util.TypedValue.TYPE_FIRST_COLOR_INT) tv.data else 0x6633B5E5
     }
 
     private fun onWriteFileStateChanged(state: ActionState<Pair<Path, String>, Unit>) {

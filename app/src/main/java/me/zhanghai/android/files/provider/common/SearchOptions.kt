@@ -32,7 +32,15 @@ data class SearchOptions(
     val minSize: Long? = null,
     val maxSize: Long? = null,
     val startTime: Long? = null,
-    val endTime: Long? = null
+    val endTime: Long? = null,
+    /**
+     * When true, files whose *contents* contain the query also match — a grep-style search. The
+     * traversal layer reads candidate files (text, bounded by [contentMaxSize]) and looks for the
+     * query inside. Name matches still match on their own; content search widens the result set.
+     */
+    val searchContent: Boolean = false,
+    /** Files larger than this are skipped during content search, to bound the cost. */
+    val contentMaxSize: Long = 2 * 1024 * 1024
 ) : Parcelable {
     /**
      * Tests the file name only. Returns `true` when [query] is empty (the name filter is then a
@@ -47,6 +55,22 @@ data class SearchOptions(
             isRegex -> matchesRegex(name, query)
             hasWildcards() -> name.matchesWildcard(query)
             else -> name.contains(query, ignoreCase = true)
+        }
+    }
+
+    /**
+     * Content-search matcher used by the traversal layer's grep pass: same matching strategy as
+     * [matchesName] but against file contents. Returns true on any match within [text]. A wildcard
+     * query is anchored to the whole text, so for content search wildcards fall back to substring
+     * matching (grep semantics) — users wanting full-line glob matching can use regex instead.
+     */
+    fun matchesContentSubstring(text: String): Boolean {
+        if (query.isEmpty()) return false
+        return when {
+            isRegex -> try {
+                Regex(query, RegexOption.IGNORE_CASE).containsMatchIn(text)
+            } catch (e: Exception) { false }
+            else -> text.contains(query, ignoreCase = true)
         }
     }
 

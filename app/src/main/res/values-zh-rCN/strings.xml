@@ -19,6 +19,18 @@
     <string name="empty">空</string>
     <string name="empty_placeholder">（空）</string>
     <string name="error">错误</string>
+    <string name="recycle_bin_restore">还原</string>
+    <string name="recycle_bin_restore_success">已还原</string>
+    <string name="recycle_bin_restore_failed">无法还原（原文件夹不存在？）</string>
+    <string name="recycle_bin_restore_confirm_format">将“%1$s”还原到原位置？</string>
+    <string name="recycle_bin_delete_confirm_format">永久删除“%1$s”？此操作无法撤销。</string>
+    <string name="recycle_bin_empty_action">清空回收站</string>
+    <string name="recycle_bin_empty_confirm">永久删除回收站中的所有项目？此操作无法撤销。</string>
+    <string name="recycle_bin_empty">回收站为空</string>
+    <string name="recycle_bin_origin_unknown">原位置未知</string>
+    <string name="recycle_bin_item_subtitle_format">删除于 %1$s · 来自 %2$s</string>
+    <string name="settings_view_recycle_bin_title">查看回收站</string>
+    <string name="settings_view_recycle_bin_summary">浏览、还原或永久删除回收站中的文件</string>
     <string name="hide">隐藏</string>
     <string name="install">安装</string>
     <string name="keep_editing">继续编辑</string>
@@ -43,6 +55,7 @@
     <string name="search_no_results">未找到匹配的文件</string>
     <string name="search_option_recursive">搜索子目录</string>
     <string name="search_option_regex">正则表达式</string>
+    <string name="search_option_content">搜索文件内容</string>
     <string name="search_filter_type">类型</string>
     <string name="search_filter_size">大小</string>
     <string name="search_filter_time">修改时间</string>
@@ -92,10 +105,49 @@
     <string name="notification_channel_file_job_description">显示和控制文件操作</string>
     <string name="notification_channel_ftp_server_name">FTP 服务器</string>
     <string name="notification_channel_ftp_server_description">显示和控制 FTP 服务器</string>
+    <string name="notification_channel_webdav_server_name">WebDAV 服务器</string>
+    <string name="notification_channel_webdav_server_description">显示和控制 WebDAV 服务器</string>
+    <string name="webdav_server_title">WebDAV 服务器</string>
+    <string name="webdav_server_notification_title">WebDAV 服务器</string>
+    <string name="webdav_server_notification_channel_name">WebDAV 服务器</string>
+    <string name="webdav_server_notification_channel_description">显示和控制 WebDAV 服务器</string>
+    <string name="webdav_server_notification_text_starting">正在启动…</string>
+    <string name="webdav_server_notification_text_running">运行中</string>
+    <string name="webdav_server_notification_text_stopped">已停止</string>
+    <string name="webdav_server_start_error">启动 WebDAV 服务器失败</string>
+    <string name="webdav_server_username">用户名</string>
+    <string name="webdav_server_password">密码</string>
+    <string name="webdav_server_port">端口</string>
+    <string name="webdav_server_home_directory">共享文件夹</string>
+    <string name="webdav_server_state_stopped">已停止</string>
+    <string name="webdav_server_state_starting">正在启动…</string>
+    <string name="webdav_server_state_running">运行中</string>
+    <string name="webdav_server_start">启动</string>
+    <string name="webdav_server_stop">停止</string>
+    <string name="webdav_server_url_label">地址</string>
+    <string name="terminal_title">终端</string>
+    <string name="terminal_distro_alpine">Alpine Linux</string>
+    <string name="terminal_distro_debian">Debian</string>
+    <string name="terminal_choose_distro">选择发行版</string>
+    <string name="terminal_connecting">正在连接…</string>
+    <string name="terminal_downloading">正在下载…</string>
+    <string name="terminal_downloading_percent">正在下载… %1$d%%</string>
+    <string name="terminal_extracting">正在解压…</string>
+    <string name="terminal_install_failed_format">安装失败：%1$s</string>
+    <string name="terminal_shizuku_missing">运行终端需要 Shizuku。请安装并启动 Shizuku，然后授予 NexFiles 权限。</string>
+    <string name="terminal_permission_denied">Shizuku 权限被拒绝。请在 Shizuku 中授予权限后重试。</string>
+    <string name="terminal_requesting_permission">正在请求 Shizuku 权限…</string>
+    <string name="terminal_open_shizuku">打开 Shizuku</string>
+    <string name="terminal_proot_missing">当前设备架构缺少 proot 二进制。此版本仅支持 arm64-v8a。</string>
+    <string name="terminal_unavailable">终端服务不可用。</string>
+    <string name="terminal_toggle_keyboard">切换键盘</string>
+    <string name="terminal_switch_distro">切换发行版</string>
+    <string name="terminal_open_in_terminal">在终端中打开</string>
 
     <string name="file_action_archive_password_title">需要密码</string>
     <string name="file_action_archive_password_message_format">“%1$s”受密码保护。</string>
     <string name="file_action_archive_password_error_empty">密码不能为空</string>
+    <string name="file_action_archive_password_remember">记住此密码，用于加密压缩包</string>
 
     <plurals name="file_job_archive_scan_notification_title_format">
         <item quantity="other">正在准备压缩 %1$,d 个文件（%2$s）</item>
@@ -314,6 +366,12 @@
     <string name="file_item_action_open_with">打开方式</string>
     <string name="file_item_action_extract">提取</string>
     <string name="file_item_action_archive">压缩</string>
+    <string name="file_list_select_action_checksum">校验和</string>
+    <string name="file_list_select_action_batch_rename">批量重命名…</string>
+    <string name="batch_rename_title">批量重命名</string>
+    <string name="batch_rename_template_hint">模板：[name] [ext] [n]/[nn]/[nnn] [N]，或 s/旧/新/标志</string>
+    <string name="batch_rename_empty_template">模板不能为空</string>
+    <string name="batch_rename_no_change">没有需要重命名的文件</string>
     <string name="file_item_action_properties">属性</string>
 
     <string name="file_properties_title_format">“%1$s”属性</string>
@@ -420,6 +478,24 @@
     <string name="file_properties_apk_signature_digests">签名</string>
     <string name="file_properties_apk_signature_digests_empty">无有效签名</string>
     <string name="file_properties_apk_past_signature_digests">旧签名</string>
+    <string name="file_properties_apk_signatures_title">APK 签名</string>
+    <string name="file_properties_apk_signatures_view">查看签名（%1$d）</string>
+    <string name="file_properties_apk_signatures_none">无签名</string>
+    <string name="file_properties_apk_signatures_schemes">签名方案</string>
+    <string name="file_properties_apk_certificate_title">证书详情</string>
+    <string name="file_properties_apk_certificate_scheme">签名方案</string>
+    <string name="file_properties_apk_certificate_version">版本</string>
+    <string name="file_properties_apk_certificate_serial">序列号</string>
+    <string name="file_properties_apk_certificate_signature_algorithm">签名算法</string>
+    <string name="file_properties_apk_certificate_subject">主题</string>
+    <string name="file_properties_apk_certificate_issuer">颁发者</string>
+    <string name="file_properties_apk_certificate_valid_from">生效时间</string>
+    <string name="file_properties_apk_certificate_valid_to">失效时间</string>
+    <string name="file_properties_apk_certificate_public_key">公钥</string>
+    <string name="file_properties_apk_certificate_public_key_format">%1$s，%2$d 位</string>
+    <string name="file_properties_apk_certificate_sha1">SHA-1 指纹</string>
+    <string name="file_properties_apk_certificate_sha256">SHA-256 指纹</string>
+    <string name="file_properties_apk_certificate_sha512">SHA-512 指纹</string>
     <string name="file_properties_checksum">校验和</string>
     <string name="file_properties_checksum_compare">比较</string>
     <string name="file_properties_checksum_compare_placeholder">任意校验和</string>
@@ -577,9 +653,17 @@
 
     <string name="archive_viewer_title">归档文件查看器</string>
     <string name="image_viewer_title">图片查看器</string>
+    <string name="media_viewer_title">媒体播放器</string>
+    <string name="media_viewer_playback_error">播放错误：%1$s</string>
     <string name="image_viewer_subtitle_format">%1$,d/%2$,d</string>
     <string name="save_as_title">另存为</string>
     <string name="save_as_error">保存时发生错误</string>
+    <string name="extract_apk_title">提取已安装应用</string>
+    <string name="extract_apk_no_source">此应用没有可提取的安装包路径</string>
+    <string name="file_list_action_extract_apk">提取已安装应用</string>
+    <string name="file_list_action_archive_save">保存压缩包修改</string>
+    <string name="archive_save_success">压缩包已保存</string>
+    <string name="archive_save_failed_format">保存压缩包失败：%1$s</string>
     <string name="save_as_success_format">已将“%1$s”保存到“%2$s”</string>
     <string name="text_editor_title">文本编辑器</string>
     <string name="text_editor_title_format">%1$s</string>
@@ -588,6 +672,14 @@
     <string name="text_editor_reload_message">您确定要重新加载吗？对此文档未保存的变更将丢失。</string>
     <string name="text_editor_encoding">编码</string>
     <string name="text_editor_close_message">您确定要舍弃对此文档未保存的变更吗？</string>
+    <string name="text_editor_find">查找</string>
+    <string name="text_editor_find_hint">在文件中查找</string>
+    <string name="text_editor_find_previous">上一个匹配</string>
+    <string name="text_editor_find_next">下一个匹配</string>
+    <string name="text_editor_find_close">关闭查找</string>
+    <string name="text_editor_find_no_results">0/0</string>
+    <string name="text_editor_find_count_format">%1$d/%2$d</string>
+    <string name="text_editor_save_as">另存为…</string>
 
     <string name="ftp_server_title">FTP 服务器</string>
     <string name="ftp_server_state_title">状态</string>
@@ -642,6 +734,8 @@
     <string name="settings_bookmark_directories_title">书签文件夹</string>
     <string name="settings_bookmark_directories_summary_empty">无书签文件夹</string>
     <string name="settings_root_strategy_title">Root 访问模式</string>
+    <string name="settings_recycle_bin_enabled_title">回收站</string>
+    <string name="settings_recycle_bin_enabled_summary">删除本地文件时移动到回收站，而非永久删除。远程或压缩包内的文件始终永久删除。</string>
     <string-array name="settings_root_strategy_entries">
         <item>仅普通访问</item>
         <item>自动</item>
@@ -670,4 +764,76 @@
     <string name="about_author_name_title">张海</string>
     <string name="about_author_github_title">在 GitHub 上关注</string>
     <string name="about_author_twitter_title">在 Twitter 上关注</string>
+
+    <string name="file_create_archive_compression_level">压缩级别</string>
+    <string name="file_create_archive_encryption_none">不加密</string>
+    <string name="file_create_archive_encryption_aes256">AES-256</string>
+    <string name="file_create_archive_compression_level_default">默认</string>
+    <string name="file_create_archive_compression_level_store">仅存储（不压缩）</string>
+    <string name="file_create_archive_compression_level_1">1 – 最快</string>
+    <string name="file_create_archive_compression_level_3">3</string>
+    <string name="file_create_archive_compression_level_5">5</string>
+    <string name="file_create_archive_compression_level_6">6 – 标准</string>
+    <string name="file_create_archive_compression_level_7">7</string>
+    <string name="file_create_archive_compression_level_9">9 – 最佳</string>
+
+    <!-- DEX 编辑器 -->
+    <string name="dex_editor_title">DEX 编辑器</string>
+    <string name="dex_editor_empty">无内容</string>
+    <string name="dex_editor_view_classes">类列表</string>
+    <string name="dex_editor_view_strings">字符串</string>
+    <string name="dex_editor_replace_string_title">替换字符串</string>
+    <string name="dex_editor_replace_string_current">当前值</string>
+    <string name="dex_editor_replace_string_new">新值</string>
+    <string name="dex_editor_replace_string_apply">替换</string>
+    <string name="dex_editor_replace_string_empty_old">请先输入要查找的字符串</string>
+    <string name="dex_editor_no_changes">没有可保存的更改</string>
+    <string name="dex_editor_saved">已保存</string>
+    <string name="dex_editor_save_failed">保存失败</string>
+
+    <!-- 运行时 Hook -->
+    <string name="hook_target_title">Hook 目标</string>
+    <string name="hook_target_confirm_message">将 %1$s 加载到沙箱进行 Hook？它的代码会运行在我们的进程内，可被拦截——无需 root。</string>
+    <string name="hook_target_load">加载</string>
+    <string name="hook_target_load_failed">加载失败：%1$s</string>
+    <string name="hook_target_init_failed">lsplant 初始化失败：%1$s</string>
+    <string name="hook_target_loaded_title">已加载到沙箱</string>
+    <string name="hook_target_loaded_message">%1$s 已加载，lsplant 就绪。启动它的 Application 即可在你的 Hook 下运行其代码。</string>
+    <string name="hook_target_start">启动</string>
+    <string name="hook_target_started">目标已在 Hook 下启动</string>
+    <string name="hook_target_start_failed">启动失败：%1$s</string>
+    <string name="hook_target_injected">已注入 %1$d 个 Hook</string>
+    <string name="hook_target_inject_failed">注入失败（需要 root，且在生产版 Android 上目标必须可调试）</string>
+
+    <!-- Hook 配置 -->
+    <string name="hook_config_title">配置 Hook</string>
+    <string name="hook_config_search_hint">搜索类…</string>
+    <string name="hook_config_no_results">无结果</string>
+    <string name="hook_config_connect_failed">连接沙箱失败</string>
+    <string name="hook_config_hooked">已 Hook：%1$s</string>
+    <string name="hook_config_hook_failed">Hook 失败：%1$s</string>
+    <string name="hook_config_apply">应用</string>
+    <string name="hook_config_start_analysis">运行</string>
+    <string name="hook_rule_return_constant">返回常量</string>
+    <string name="hook_rule_return_constant_hint">值（字符串/整数/布尔/null）</string>
+    <string name="hook_rule_log_calls">记录调用</string>
+    <string name="hook_rule_replace_string">替换字符串</string>
+    <string name="hook_rule_replace_string_hint">旧值\n新值</string>
+    <string name="hook_rule_block_call">阻断调用</string>
+
+    <!-- Hook 日志查看 -->
+    <string name="hook_log_title">Hook 活动</string>
+    <string name="hook_log_empty">暂无 Hook 活动。当目标调用被 Hook 的方法时会显示。</string>
+
+    <!-- Hook 预设 -->
+    <string name="hook_preset_menu">预设</string>
+    <string name="hook_preset_applied">已应用 %1$d 个 Hook，%2$d 个失败</string>
+    <string name="hook_preset_bypass_root_title">绕过 root 检测</string>
+    <string name="hook_preset_bypass_root_desc">Hook File.exists()、Runtime.exec()、Build.TAGS 和包查询以隐藏 root。同时记录目标检查的内容。</string>
+    <string name="hook_preset_bypass_debug_title">绕过调试检测</string>
+    <string name="hook_preset_bypass_debug_desc">让 Debug.isDebuggerConnected() 返回 false，并记录签名检查。</string>
+    <string name="hook_preset_log_network_title">记录网络请求</string>
+    <string name="hook_preset_log_network_desc">Hook URL/URI 构造函数、OkHttp 和 HttpURLConnection，记录目标访问的每个端点。</string>
+    <string name="hook_preset_log_prefs_title">记录 SharedPreferences</string>
+    <string name="hook_preset_log_prefs_desc">Hook SharedPreferences 的 getString/getBoolean/putString，揭示目标本地存储的内容（令牌、标志、开关）。</string>
 </resources>

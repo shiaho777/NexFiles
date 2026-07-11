@@ -16,6 +16,7 @@ import me.zhanghai.android.files.filelist.FileSortOptions
 import me.zhanghai.android.files.filelist.FileViewType
 import me.zhanghai.android.files.filelist.OpenApkDefaultAction
 import me.zhanghai.android.files.navigation.BookmarkDirectory
+import me.zhanghai.android.files.navigation.RecentDirectory
 import me.zhanghai.android.files.navigation.StandardDirectorySettings
 import me.zhanghai.android.files.provider.root.RootStrategy
 import me.zhanghai.android.files.storage.FileSystemRoot
@@ -66,6 +67,39 @@ object Settings {
     val CREATE_ARCHIVE_TYPE: SettingLiveData<Int> =
         ResourceIdSettingLiveData(R.string.pref_key_create_archive_type, R.id.zipRadio)
 
+    /**
+     * User-managed archive passwords. These are pre-loaded into every [ArchiveFileSystem] so that
+     * frequently-used encrypted archives open without a manual prompt; the stored order is not
+     * preserved (SharedPreferences string sets are unordered), which is fine because all entries
+     * are tried until one succeeds.
+     *
+     * Stored in plain text, matching how the FTP server password is already handled; the threat
+     * model is local device access rather than a credential store.
+     */
+    val ARCHIVE_PASSWORDS: SettingLiveData<Set<String>> =
+        StringSetSettingLiveData(
+            R.string.pref_key_archive_passwords, R.array.pref_default_value_archive_passwords
+        )
+
+    /**
+     * Whether deleting local files moves them to the recycle bin instead of unlinking. Off means
+     * permanent delete everywhere; on still permanently deletes remote/archive paths (which can't
+     * be cheaply moved to a local trash).
+     */
+    val RECYCLE_BIN_ENABLED: SettingLiveData<Boolean> =
+        BooleanSettingLiveData(
+            R.string.pref_key_recycle_bin_enabled, R.bool.pref_default_value_recycle_bin_enabled
+        )
+
+    /**
+     * Directories the user has navigated into recently, kept in most-recent-first order and capped
+     * to a small number so the drawer stays scannable. Recorded automatically on navigation.
+     */
+    val RECENT_DIRECTORIES: SettingLiveData<List<RecentDirectory>> =
+        ParcelValueSettingLiveData(
+            R.string.pref_key_recent_directories, listOf()
+        )
+
     val FTP_SERVER_ANONYMOUS_LOGIN: SettingLiveData<Boolean> =
         BooleanSettingLiveData(
             R.string.pref_key_ftp_server_anonymous_login,
@@ -97,6 +131,30 @@ object Settings {
     val FTP_SERVER_WRITABLE: SettingLiveData<Boolean> =
         BooleanSettingLiveData(
             R.string.pref_key_ftp_server_writable, R.bool.pref_default_value_ftp_server_writable
+        )
+
+    // WebDAV server — mirrors the FTP server's settings so the two can coexist independently.
+    // State is exposed via WebDavServerService.stateLiveData, not persisted here.
+    val WEBDAV_SERVER_USERNAME: SettingLiveData<String> =
+        StringSettingLiveData(
+            R.string.pref_key_webdav_server_username, R.string.pref_default_value_webdav_server_username
+        )
+
+    val WEBDAV_SERVER_PASSWORD: SettingLiveData<String> =
+        StringSettingLiveData(
+            R.string.pref_key_webdav_server_password, R.string.pref_default_value_empty
+        )
+
+    val WEBDAV_SERVER_PORT: SettingLiveData<Int> =
+        IntegerSettingLiveData(
+            R.string.pref_key_webdav_server_port, R.integer.pref_default_value_webdav_server_port
+        )
+
+    val WEBDAV_SERVER_HOME_DIRECTORY: SettingLiveData<Path> =
+        ParcelValueSettingLiveData(
+            R.string.pref_key_webdav_server_home_directory,
+            @Suppress("DEPRECATION")
+            Paths.get(Environment.getExternalStorageDirectory().absolutePath)
         )
 
     val THEME_COLOR: SettingLiveData<ThemeColor> =

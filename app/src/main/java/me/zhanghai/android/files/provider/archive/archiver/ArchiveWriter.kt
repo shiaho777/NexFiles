@@ -9,6 +9,8 @@ import java8.nio.channels.SeekableByteChannel
 import java8.nio.file.LinkOption
 import java8.nio.file.Path
 import java8.nio.file.attribute.BasicFileAttributes
+import java8.nio.file.attribute.FileTime
+import me.zhanghai.android.files.filelist.ArchiveEncryption
 import me.zhanghai.android.files.provider.common.PosixFileAttributes
 import me.zhanghai.android.files.provider.common.PosixFileMode
 import me.zhanghai.android.files.provider.common.PosixFileType
@@ -18,6 +20,7 @@ import me.zhanghai.android.files.provider.common.newInputStream
 import me.zhanghai.android.files.provider.common.readAttributes
 import me.zhanghai.android.files.provider.common.readSymbolicLinkByteString
 import me.zhanghai.android.files.provider.common.size
+import java.io.ByteArrayInputStream
 import java.io.Closeable
 import java.io.IOException
 
@@ -25,9 +28,12 @@ class ArchiveWriter @Throws(IOException::class) constructor(
     channel: SeekableByteChannel,
     format: Int,
     filter: Int,
-    password: String?
+    password: String?,
+    encryption: ArchiveEncryption,
+    compressionLevel: Int?
 ) : Closeable {
-    private val archive = WriteArchive(channel, format, filter, password)
+    private val archive =
+        WriteArchive(channel, format, filter, password, encryption, compressionLevel)
 
     @Throws(IOException::class)
     fun write(file: Path, entryName: Path, intervalMillis: Long, listener: ((Long) -> Unit)?) {
@@ -68,6 +74,30 @@ class ArchiveWriter @Throws(IOException::class) constructor(
             }
         } else {
             listener?.invoke(attributes.size())
+        }
+    }
+
+    /**
+     * Writes a file entry whose content is already in memory (used by the archive edit layer when
+     * rebuilding an archive from in-memory replacement bytes, avoiding a round-trip through a temp
+     * file). Uses regular-file defaults for ownership/mode since the overlay doesn't track them.
+     */
+    fun writeBytes(
+        entryName: Path,
+        bytes: ByteArray,
+        lastModifiedTime: FileTime?,
+        intervalMillis: Long,
+        listener: ((Long) -> Unit)?
+    ) {
+        val name = entryName.toString()
+        val type = PosixFileType.REGULAR_FILE
+        val size = bytes.size.toLong()
+        val mode = PosixFileMode.FILE_DEFAULT
+        archive.Entry(
+            name, lastModifiedTime, null, null, type, size, null, null, mode, null
+        ).use { archive.writeEntry(it) }
+        ByteArrayInputStream(bytes).use { input ->
+            input.copyTo(archive.newDataOutputStream(), intervalMillis, listener)
         }
     }
 
