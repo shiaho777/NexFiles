@@ -27,7 +27,9 @@ android {
         resValue 'string', 'file_provider_authority', applicationId + '.file_provider'
         externalNativeBuild {
             cmake {
-                arguments '-DANDROID_STL=none'
+                // lsplant is C++ and needs a C++ STL; the existing C-only libs (hiddenapi,
+                // syscall, terminal) are unaffected by switching from `none` to c++_static.
+                arguments '-DANDROID_STL=c++_static'
             }
         }
     }
@@ -36,6 +38,8 @@ android {
         buildConfig true
         resValues true
         viewBinding true
+        // prefab exposes lsplant's native headers + .so to our own CMake-built hook bridge.
+        prefab true
     }
     androidResources {
         generateLocaleConfig true
@@ -93,6 +97,28 @@ dependencies {
     }
     implementation 'com.github.chrisbanes:PhotoView:2.3.0'
     implementation 'com.github.topjohnwu.libsu:service:5.2.2'
+    // dexlib2 for the DEX editor/viewer: parses DEX bytecode into a mutable object model and
+    // writes it back with checksums/signature recomputed. BSD-licensed, pure Java, the same
+    // library smali/baksmali are built on. Published on Maven Central as org.smali:dexlib2, so
+    // we use that (no JitPack round-trip). Guava comes in transitively and is required by
+    // dexlib2's immutable collections; we don't exclude it.
+    implementation 'org.smali:dexlib2:2.5.2'
+    // smali + baksmali for the smali source-level editor: baksmali disassembles a ClassDef into
+    // human-readable smali text, and smali assembles edited text back into a ClassDef. Same
+    // 2.5.2 version as dexlib2 to guarantee API compatibility; both are on Maven Central.
+    implementation 'org.smali:baksmali:2.5.2'
+    implementation 'org.smali:smali:2.5.2'
+    // lsplant (LSPosed's ART method-hook core) for the runtime hook feature. LGPL-3.0, the
+    // library that actually rewrites ArtMethod entry points to install Java method hooks. We
+    // pull the standalone variant — it is a pure-native prefab library (C++ header + .so), so
+    // our own C++ JNI bridge links against it directly. The inline-hooker backend (the one
+    // piece lsplant delegates to its host) is provided by our nexhook bridge.
+    implementation 'org.lsposed.lsplant:lsplant-standalone:6.4'
+    // ShadowHook (ByteDance's production-grade inline hook library) as the inline-hook backend
+    // for lsplant. lsplant delegates native code patching to its host; ShadowHook implements
+    // that with a battle-tested arm64/arm32 trampoline installer. MIT-licensed, prefab, so our
+    // nexhook.cpp links it directly. This closes the one gap that made lsplant::Init fail.
+    implementation 'com.bytedance.android:shadowhook:2.0.1'
 }
 
 dependencies {
@@ -181,6 +207,18 @@ dependencies {
     implementation 'me.zhanghai.android.retrofile:library:1.2.0'
     implementation 'me.zhanghai.android.systemuihelper:library:1.0.0'
     implementation 'org.apache.ftpserver:ftpserver-core:1.2.1'
+    // tar.gz extraction for the terminal rootfs downloads. Apache 2.0, handles pax/GNU/ustar
+    // variants that hand-writing a tar reader would get wrong on real-world rootfs archives.
+    implementation 'org.apache.commons:commons-compress:1.27.1'
+    // Media3 (ExoPlayer successor) for the built-in media viewer. Replaces the system VideoView:
+    // better format coverage, real error handling, and proper lifecycle/resume support. We pull
+    // core + UI (PlayerView with built-in controls); FFmpeg extension can be added later for
+    // formats the platform decoders don't cover.
+    implementation 'androidx.media3:media3-exoplayer:1.4.1'
+    implementation 'androidx.media3:media3-ui:1.4.1'
+    // Embedded HTTP server backing the WebDAV server feature. Lightweight (~50KB), no transitive
+    // deps, and intentionally used without websockets/main module.
+    implementation 'org.nanohttpd:nanohttpd:2.3.1'
     // This is a dependency of org.apache.ftpserver:ftpserver-core but org.apache.mina:mina-core
     // 2.1.4+ became incompatible before API 24 due to dependency on StandardSocketOptions
     // (DIRMINA-1123) and NetworkChannel.supportedOptions() (DIRMINA-1130).
