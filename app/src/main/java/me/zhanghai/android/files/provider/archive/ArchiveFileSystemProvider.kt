@@ -11,6 +11,7 @@ import java8.nio.file.AccessDeniedException
 import java8.nio.file.AccessMode
 import java8.nio.file.CopyOption
 import java8.nio.file.DirectoryStream
+import java8.nio.file.FileAlreadyExistsException
 import java8.nio.file.FileStore
 import java8.nio.file.FileSystem
 import java8.nio.file.LinkOption
@@ -34,8 +35,10 @@ import me.zhanghai.android.files.provider.common.SearchOptions
 import me.zhanghai.android.files.provider.common.decodedPathByteString
 import me.zhanghai.android.files.provider.common.decodedQueryByteString
 import me.zhanghai.android.files.provider.common.isSameFile
+import me.zhanghai.android.files.provider.common.newInputStream
 import me.zhanghai.android.files.provider.common.toAccessModes
 import me.zhanghai.android.files.provider.common.toByteString
+import me.zhanghai.android.files.provider.common.toCopyOptions
 import me.zhanghai.android.files.provider.common.toOpenOptions
 import java.io.IOException
 import java.io.InputStream
@@ -121,7 +124,6 @@ object ArchiveFileSystemProvider : FileSystemProvider(), PathObservableProvider,
     ): SeekableByteChannel {
         file as? ArchivePath ?: throw ProviderMismatchException(file.toString())
         val openOptions = options.toOpenOptions()
-        openOptions.checkForArchive()
         if (attributes.isNotEmpty()) {
             throw UnsupportedOperationException(attributes.contentToString())
         }
@@ -129,8 +131,13 @@ object ArchiveFileSystemProvider : FileSystemProvider(), PathObservableProvider,
         // close; the archive itself is only rewritten on ArchiveFileSystem.commitEdits. READ still
         // goes through the read path (newInputStream), not this channel.
         if (openOptions.write) {
+            // checkForArchive only rejects genuinely unsupported options (APPEND, DELETE_ON_CLOSE,
+            // SYNC, DSYNC) — WRITE/CREATE/TRUNCATE_EXISTING are allowed for the COW edit path.
+            openOptions.checkForArchive()
             return ArchiveEditByteChannel(file, file.fileSystem)
         }
+        // READ path: archive reads go through newInputStream, not newByteChannel.
+        openOptions.checkForArchive()
         throw UnsupportedOperationException()
     }
 
@@ -184,14 +191,23 @@ object ArchiveFileSystemProvider : FileSystemProvider(), PathObservableProvider,
     override fun copy(source: Path, target: Path, vararg options: CopyOption) {
         source as? ArchivePath ?: throw ProviderMismatchException(source.toString())
         target as? ArchivePath ?: throw ProviderMismatchException(target.toString())
-        throw ReadOnlyFileSystemException(source.toString(), target.toString(), null)
+        val copyOptions = options.toCopyOptions()
+        if (!copyOptions.replaceExisting && target.fileSystem.exists(target)) {
+            throw FileAlreadyExistsException(source.toString(), target.toString(), null)
+        }
+        // Read source bytes (from the archive or overlay) and write them to the target's overlay.
+        // This handles both file-to-file copy and the common case of copying within the same
+        // archive. Directory copies are handled by the caller (walkFileTree + createDirectory).
+        val bytes = source.newInputStream().use { it.readBytes() }
+        target.fileSystem.writeFile(target, bytes)
     }
 
     @Throws(IOException::class)
     override fun move(source: Path, target: Path, vararg options: CopyOption) {
         source as? ArchivePath ?: throw ProviderMismatchException(source.toString())
         target as? ArchivePath ?: throw ProviderMismatchException(target.toString())
-        throw ReadOnlyFileSystemException(source.toString(), target.toString(), null)
+        copy(source, target, *options)
+        source.fileSystem.deleteInLayer(source)
     }
 
     @Throws(IOException::class)
@@ -225,8 +241,10 @@ object ArchiveFileSystemProvider : FileSystemProvider(), PathObservableProvider,
     override fun checkAccess(path: Path, vararg modes: AccessMode) {
         path as? ArchivePath ?: throw ProviderMismatchException(path.toString())
         val accessModes = modes.toAccessModes()
-        path.fileSystem.getEntry(path)
-        if (accessModes.write || accessModes.execute) {
+        // The COW edit layer makes the archive writable, so WRITE access is always granted.
+        // We only need to verify the path exists (in the archive or the overlay).
+        path.fileSystem.exists(path)
+        if (accessModes.execute) {
             throw AccessDeniedException(path.toString())
         }
     }

@@ -81,6 +81,23 @@ internal class ArchiveFileSystem(
             getEntryLocked(path)
         }
 
+    /**
+     * Whether [path] exists in the archive or the edit overlay. Unlike [getEntry], this does not
+     * throw for missing paths and accounts for overlay additions/deletions.
+     */
+    @Throws(IOException::class)
+    fun exists(path: Path): Boolean = synchronized(lock) {
+        ensureEntriesLocked(path)
+        val layer = editLayer
+        if (layer != null) {
+            if (layer.isDeleted(path)) return@synchronized false
+            if (layer.hasReplacement(path) || layer.addedDirectories.contains(path)) {
+                return@synchronized true
+            }
+        }
+        entries!!.containsKey(path)
+    }
+
     @Throws(IOException::class)
     private fun getEntryLocked(path: Path): ReadArchive.Entry =
         synchronized(lock) {
@@ -330,7 +347,7 @@ internal class ArchiveFileSystem(
 
     override fun isOpen(): Boolean = synchronized(lock) { isOpen }
 
-    override fun isReadOnly(): Boolean = editLayer == null
+    override fun isReadOnly(): Boolean = false
 
     override fun getSeparator(): String = SEPARATOR_STRING
 
