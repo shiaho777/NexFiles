@@ -1083,4 +1083,10 @@
     <!-- ARSC viewer/editor: dedicated strings (polish pass) -->
     <string name="arsc_viewer_saved">Resource table saved</string>
     <string name="arsc_viewer_save_failed">Failed to save resource table</string>
+
+    <!-- Search: in-results refinement -->
+    <string name="file_list_action_search_in_results">Filter in results</string>
+    <string name="search_in_results_title">Filter in results</string>
+    <string name="search_in_results_hint">Filter by name</string>
+    <string name="search_in_results_count_format">Filter within %1$d results</string>
 </resources>

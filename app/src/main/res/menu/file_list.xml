@@ -28,6 +28,14 @@
         app:showAsAction="ifRoom" />
 
     <item
+        android:id="@+id/action_search_in_results"
+        android:icon="@drawable/search_icon_control_normal_24dp"
+        android:orderInCategory="101"
+        android:title="@string/file_list_action_search_in_results"
+        android:visible="false"
+        app:showAsAction="ifRoom" />
+
+    <item
         android:id="@+id/action_view_sort"
         android:icon="@drawable/sort_icon_control_normal_24dp"
         android:orderInCategory="100"

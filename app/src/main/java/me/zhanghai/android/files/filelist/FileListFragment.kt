@@ -155,7 +155,8 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
     ShowRequestNotificationPermissionRationaleDialogFragment.Listener,
     ShowRequestNotificationPermissionInSettingsRationaleDialogFragment.Listener,
     ShowRequestStoragePermissionRationaleDialogFragment.Listener,
-    ShowRequestStoragePermissionInSettingsRationaleDialogFragment.Listener {
+    ShowRequestStoragePermissionInSettingsRationaleDialogFragment.Listener,
+    SearchInResultsDialogFragment.Listener {
     private val requestAllFilesAccessLauncher = registerForActivityResult(
         RequestAllFilesAccessContract(), this::onRequestAllFilesAccessResult
     )
@@ -481,6 +482,9 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         // The filter entry is only meaningful while a search is active; hide it otherwise so the
         // toolbar stays uncluttered during normal browsing.
         menu.findItem(R.id.action_search_filter)?.isVisible = viewModel.searchState.isSearching
+        // "Filter in results" is available once a search has completed and its base result set is
+        // cached for in-memory refinement (no re-traversal needed).
+        menu.findItem(R.id.action_search_in_results)?.isVisible = viewModel.canRefine
         // "Save archive changes" only applies when browsing inside an archive with pending edits.
         menu.findItem(R.id.action_archive_save)?.isVisible = currentPath.hasPendingArchiveEdits
     }
@@ -489,6 +493,10 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         return when (item.itemId) {
             R.id.action_search_filter -> {
                 showSearchFilterDialog()
+                true
+            }
+            R.id.action_search_in_results -> {
+                showSearchInResultsDialog()
                 true
             }
             R.id.action_extract_apk -> {
@@ -675,6 +683,10 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
                 getString(R.string.file_list_empty)
             }
         }
+        // Refresh the toolbar so "Filter in results" appears once the base result set is cached.
+        if (stateful is Success) {
+            (requireActivity() as FileListFragmentHost).invalidateOptionsMenu()
+        }
         if (files != null) {
             updateAdapterFileList()
         } else {
@@ -818,6 +830,18 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         }
         SearchFilterDialogFragment().putArgs(args)
             .show(parentFragmentManager, SearchFilterDialogFragment::class.java.name)
+    }
+
+    private fun showSearchInResultsDialog() {
+        val resultCount = viewModel.fileListStateful.value?.size ?: 0
+        val currentQuery = viewModel.searchState.options.query
+        SearchInResultsDialogFragment.show(resultCount, currentQuery, this)
+    }
+
+    // -- SearchInResultsDialogFragment.Listener --
+
+    override fun onSearchInResults(query: String) {
+        viewModel.refine(query)
     }
 
     private fun newTask() {
