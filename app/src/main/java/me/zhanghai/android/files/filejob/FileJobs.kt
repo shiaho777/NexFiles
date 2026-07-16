@@ -1502,12 +1502,7 @@ class InstallApkJob(private val file: Path) : FileJob() {
  */
 class InstallSplitApksJob(private val bundleFile: Path) : FileJob() {
     override fun run() {
-        open(
-            bundleFile, R.string.file_install_apk_from_background_title_format,
-            R.string.file_install_apk_from_background_text
-        ) { file ->
-            installSplitApks(file)
-        }
+        installSplitApks(bundleFile)
     }
 
     @Throws(IOException::class)
