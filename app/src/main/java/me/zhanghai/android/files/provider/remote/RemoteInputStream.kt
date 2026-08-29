@@ -82,7 +82,7 @@ class RemoteInputStream : InputStream, Parcelable {
     private fun ensureFdReady() {
         if (fdState != FD_UNKNOWN) return
         val pfd = try {
-            remoteInputStream.call { exception -> openFd(exception) }
+            remoteInputStream!!.call { exception -> openFd(exception) }
         } catch (e: Exception) {
             null
         }

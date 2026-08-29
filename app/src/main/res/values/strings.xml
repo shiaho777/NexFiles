@@ -311,6 +311,12 @@
     <string name="file_open_as_type_any">Other</string>
     <string name="file_install_apk_from_background_title_format">“%1$s” is ready to be installed</string>
     <string name="file_install_apk_from_background_text">Tap to install</string>
+    <string name="file_install_split_success">App installed successfully</string>
+    <string name="file_install_split_failed">App install failed</string>
+    <string name="file_list_select_action_install">Install</string>
+    <string name="file_install_split_preparing">Preparing split APK install…</string>
+    <string name="file_install_confirm_required_title">Install confirmation required</string>
+    <string name="file_install_confirm_required_text">Tap to confirm the installation</string>
     <string name="file_open_from_background_title_format">“%1$s” is ready to be opened</string>
     <string name="file_open_from_background_text">Tap to open</string>
     <string name="file_name_error_empty">File name cannot be empty</string>
@@ -868,6 +874,10 @@
     </string-array>
     <string name="settings_black_night_mode">Black night mode</string>
     <string name="settings_file_list_animation_title">File list animation</string>
+    <string name="settings_file_list_dual_pane_title">Dual pane on large screens</string>
+    <string name="settings_file_list_dual_pane_summary">Show two file panes side by side in landscape on tablets</string>
+    <string name="file_list_action_swap_panes">Swap panes</string>
+    <string name="file_list_action_open_in_other_pane">Open in other pane</string>
     <string name="settings_file_name_ellipsize_title">Display long file name</string>
     <string-array name="settings_file_name_ellipsize_entries">
         <item>Ellipsize the beginning</item>

@@ -19,6 +19,8 @@ import me.zhanghai.android.files.databinding.NameDialogNameIncludeBinding
 import me.zhanghai.android.files.databinding.SignApkDialogBinding
 import me.zhanghai.android.files.file.FileItem
 import me.zhanghai.android.files.filelist.FileNameDialogFragment
+import me.zhanghai.android.files.filelist.NameDialogFragment
+import me.zhanghai.android.files.filelist.name
 import me.zhanghai.android.files.util.ParcelableArgs
 import me.zhanghai.android.files.util.args
 import me.zhanghai.android.files.util.putArgs
@@ -90,7 +92,7 @@ class SignApkDialogFragment : FileNameDialogFragment() {
     @Parcelize
     class Args(val file: FileItem) : ParcelableArgs
 
-    private class Binding private constructor(
+    protected class Binding private constructor(
         root: View,
         nameLayout: TextInputLayout,
         nameEdit: EditText,

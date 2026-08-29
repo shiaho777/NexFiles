@@ -27,7 +27,7 @@ import java.util.zip.ZipFile
  * writable ZIP we can reopen.
  *
  * The signature uses RSASSA-PKCS1-v1_5 with SHA-256 — the standard v1 algorithm. We deliberately
- * skip META-INF/* entries (both the signature files themselves and any existing ones from a prior
+ * skip META-INF entries (both the signature files themselves and any existing ones from a prior
  * sign), matching what jarsigner/apksigner do.
  */
 internal object ApkV1Signer {

@@ -210,6 +210,8 @@
     <string name="file_open_as_type_any">其他</string>
     <string name="file_install_apk_from_background_title_format">「%1$s」已可供安裝</string>
     <string name="file_install_apk_from_background_text">輕觸即可安裝</string>
+    <string name="file_install_confirm_required_title">需要確認安裝</string>
+    <string name="file_install_confirm_required_text">輕觸以確認安裝</string>
     <string name="file_open_from_background_title_format">「%1$s」已可供開啟</string>
     <string name="file_open_from_background_text">輕觸即可開啟</string>
     <string name="file_name_error_empty">檔案名稱不能為空</string>

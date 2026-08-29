@@ -43,6 +43,7 @@ import me.zhanghai.android.files.util.putArgs
 import me.zhanghai.android.files.util.putState
 import me.zhanghai.android.files.util.readParcelable
 import me.zhanghai.android.files.util.setOnEditorConfirmActionListener
+import me.zhanghai.android.files.util.valueCompat
 
 class ArchivePasswordDialogFragment : AppCompatDialogFragment() {
     private val args by args<Args>()

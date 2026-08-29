@@ -118,7 +118,7 @@ class TerminalActivity : AppCompatActivity() {
             try {
                 RootfsManager.install(distro).collect { p ->
                     when (p) {
-                        is RootfsManager.InstallProgress.Connecting ->
+                        RootfsManager.InstallProgress.Connecting ->
                             statusText.text = getString(R.string.terminal_connecting)
                         is RootfsManager.InstallProgress.Downloading -> {
                             val percent = if (p.total > 0) (p.downloaded * 100 / p.total).toInt() else -1
@@ -130,7 +130,7 @@ class TerminalActivity : AppCompatActivity() {
                         }
                         RootfsManager.InstallProgress.Extracting ->
                             statusText.text = getString(R.string.terminal_extracting)
-                        RootfsManager.InstallProgress.Done -> {
+                        is RootfsManager.InstallProgress.Done -> {
                             progress.isVisible = false
                             statusText.isVisible = false
                         }

@@ -193,7 +193,8 @@ class WebDavServer(
         }
         val files = HashMap<String, String>()
         try {
-            parseBody(session, files)
+            // HTTPSession.parseBody lives on the session object, not on the server.
+            session.parseBody(files)
         } catch (e: Exception) {
             return newFixedLengthResponse(
                 Response.Status.INTERNAL_ERROR, "text/plain", e.message ?: "Put failed"
@@ -324,7 +325,8 @@ class WebDavServer(
     private fun parseBody(session: IHTTPSession) {
         val files = HashMap<String, String>()
         try {
-            parseBody(session, files)
+            // HTTPSession.parseBody lives on the session object, not on the server.
+            session.parseBody(files)
         } catch (ignored: Exception) {}
     }
 

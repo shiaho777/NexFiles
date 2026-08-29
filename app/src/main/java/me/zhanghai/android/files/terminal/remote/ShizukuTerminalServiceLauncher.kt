@@ -16,9 +16,13 @@ import android.os.Process
 import android.util.Log
 import androidx.annotation.Keep
 import androidx.annotation.RequiresApi
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import me.zhanghai.android.files.BuildConfig
 import me.zhanghai.android.files.terminal.IRemoteTerminalService
 import me.zhanghai.android.files.terminal.TerminalNative
@@ -69,11 +73,11 @@ object ShizukuTerminalServiceLauncher {
         if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) return true
         return runCatching {
             runBlocking<Boolean> {
-                val granted = kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+                val granted = suspendCancellableCoroutine<Boolean> { cont ->
                     val listener = object : Shizuku.OnRequestPermissionResultListener {
                         override fun onRequestPermissionResult(requestCode: Int, grantResult: Int) {
                             if (cont.isActive) {
-                                cont.resume(grantResult == PackageManager.PERMISSION_GRANTED)
+                                cont.resume(grantResult == PackageManager.PERMISSION_GRANTED, onCancellation = null)
                             }
                         }
                     }
@@ -103,7 +107,7 @@ object ShizukuTerminalServiceLauncher {
         return try {
             runBlocking {
                 withTimeout(TIMEOUT_MILLIS) {
-                    kotlinx.coroutines.suspendCancellableCoroutine { continuation ->
+                    suspendCancellableCoroutine<IRemoteTerminalService> { continuation ->
                         val serviceArgs = Shizuku.UserServiceArgs(
                             ComponentName(
                                 BuildConfig.APPLICATION_ID,
@@ -117,7 +121,7 @@ object ShizukuTerminalServiceLauncher {
                         val connection = object : ServiceConnection {
                             override fun onServiceConnected(name: ComponentName, service: IBinder) {
                                 val iface = IRemoteTerminalService.Stub.asInterface(service)
-                                if (continuation.isActive) continuation.resume(iface)
+                                if (continuation.isActive) continuation.resume(iface, onCancellation = null)
                             }
                             override fun onServiceDisconnected(name: ComponentName) {
                                 if (continuation.isActive) {

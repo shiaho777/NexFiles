@@ -11,7 +11,7 @@ import kotlinx.parcelize.Parcelize
 /**
  * Parsed signature information of an APK, covering all three APK Signature Schemes.
  *
- * V1 (jarsigner) is detected by the presence of META-INF/*.SF | *.RSA | *.DSA | *.EC entries.
+ * V1 (jarsigner) is detected by the presence of META-INF `.SF` / `.RSA` / `.DSA` / `.EC` entries.
  * V2 / V3 / V3.1 live in the APK Signing Block immediately before the ZIP central directory,
  * keyed by their respective magic IDs (see [ApkSigningScheme]).
  *
@@ -64,9 +64,9 @@ data class ApkSignerInfo(
 @Parcelize
 enum class ApkSigningScheme(val blockId: Int) : Parcelable {
     V1_JAR(0),
-    V2_ANDROID(0x7109871A),
-    V3_ANDROID(0xF05368C0),
-    V31_ANDROID(0x1B93AD61),
+    V2_ANDROID(0x7109871A.toInt()),
+    V3_ANDROID(0xF05368C0.toInt()),
+    V31_ANDROID(0x1B93AD61.toInt()),
     V4_INCREMENTAL(0x42726577);
 
     val isV2Plus: Boolean get() = this != V1_JAR

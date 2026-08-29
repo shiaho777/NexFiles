@@ -85,8 +85,10 @@ object DirectorySizeCalculator {
     private fun computeSize(directory: Path): FileSize {
         var total = 0L
         try {
+            // retrofile's FileVisitOption only has FOLLOW_LINKS; an empty option set means
+            // symlinks are not followed, which is what we want here.
             Files.walkFileTree(
-                directory, setOf(FileVisitOption.NOFOLLOW_LINKS), Int.MAX_VALUE,
+                directory, emptySet(), Int.MAX_VALUE,
                 object : FileVisitor<Path> {
                     override fun preVisitDirectory(
                         dir: Path, attrs: BasicFileAttributes

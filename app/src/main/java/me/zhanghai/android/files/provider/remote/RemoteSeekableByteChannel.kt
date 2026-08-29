@@ -70,7 +70,7 @@ class RemoteSeekableByteChannel : ForceableChannel, SeekableByteChannel, Parcela
     @Throws(IOException::class)
     private fun readViaIpc(destination: ByteBuffer): Int {
         val destinationBytes = ByteArray(destination.remaining())
-        val size = remoteChannel.call { exception -> read(destinationBytes, exception) }
+        val size = remoteChannel!!.call { exception -> read(destinationBytes, exception) }
         if (size > 0) {
             destination.put(destinationBytes, 0, size)
         }
@@ -107,7 +107,7 @@ class RemoteSeekableByteChannel : ForceableChannel, SeekableByteChannel, Parcela
         val sourceBytes = ByteArray(source.remaining())
         source.get(sourceBytes)
         source.position(oldPosition)
-        val size = remoteChannel.call { exception -> write(sourceBytes, exception) }
+        val size = remoteChannel!!.call { exception -> write(sourceBytes, exception) }
         source.position(oldPosition + size)
         return size
     }
@@ -122,7 +122,7 @@ class RemoteSeekableByteChannel : ForceableChannel, SeekableByteChannel, Parcela
     private fun ensureFdReady() {
         if (fdState != FD_UNKNOWN) return
         val pfd = try {
-            remoteChannel.call { exception -> openFd(exception) }
+            remoteChannel!!.call { exception -> openFd(exception) }
         } catch (e: Exception) {
             null
         }

@@ -152,7 +152,7 @@ internal object ArscEncoder {
             val entryOffsets = IntArray(specEntryCount) { -1 }
             for ((entryIdx, entry) in type.entries.withIndex()) {
                 entryOffsets[entryIdx] = entriesBytes.size()
-                writeEntry(entriesBytes, entry, internKey, typeNames, internGlobal)
+                writeEntry(entriesBytes, entry, ::internKey, typeNames, internGlobal)
             }
             val entriesArray = entriesBytes.toByteArray()
 

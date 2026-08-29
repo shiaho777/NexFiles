@@ -82,14 +82,14 @@ class DexEditorViewModel(val file: Path) : ViewModel() {
         definingClass: String, name: String, parameters: List<String>, returnType: String,
         newName: String
     ): Int = applyEditBlocking {
-        model.renameMethod(definingClass, name, parameters, returnType, newName)
+        it.renameMethod(definingClass, name, parameters, returnType, newName)
     }
 
     /** Renames a field and updates all field access references. */
     fun renameField(
         definingClass: String, name: String, type: String, newName: String
     ): Int = applyEditBlocking {
-        model.renameField(definingClass, name, type, newName)
+        it.renameField(definingClass, name, type, newName)
     }
 
     /** Changes a method's signature (parameters + return type) and updates all references. */
@@ -98,7 +98,7 @@ class DexEditorViewModel(val file: Path) : ViewModel() {
         oldParameters: List<String>, oldReturnType: String,
         newParameters: List<String>, newReturnType: String
     ): Int = applyEditBlocking {
-        model.changeMethodSignature(
+        it.changeMethodSignature(
             definingClass, name, oldParameters, oldReturnType, newParameters, newReturnType
         )
     }

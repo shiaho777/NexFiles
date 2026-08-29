@@ -18,18 +18,25 @@ import java8.nio.file.PathMatcher
 import java8.nio.file.WatchService
 import java8.nio.file.attribute.UserPrincipalLookupService
 import java8.nio.file.spi.FileSystemProvider
+import me.zhanghai.android.files.filelist.ArchiveEncryption
 import me.zhanghai.android.files.provider.archive.archiver.ArchiveReader
+import me.zhanghai.android.files.provider.archive.archiver.ArchiveWriter
 import me.zhanghai.android.files.provider.archive.archiver.ReadArchive
 import me.zhanghai.android.files.provider.common.ByteString
 import me.zhanghai.android.files.provider.common.ByteStringBuilder
 import me.zhanghai.android.files.provider.common.ByteStringListPathCreator
 import me.zhanghai.android.files.provider.common.IsDirectoryException
+import me.zhanghai.android.files.provider.common.deleteIfExists
+import me.zhanghai.android.files.provider.common.moveTo
+import me.zhanghai.android.files.provider.common.newByteChannel
 import me.zhanghai.android.files.provider.common.toByteString
 import me.zhanghai.android.files.settings.Settings
+import me.zhanghai.android.files.util.valueCompat
 import me.zhanghai.android.libarchive.Archive
 import me.zhanghai.android.libarchive.ArchiveException
 import java.io.IOException
 import java.io.InputStream
+import java8.nio.file.attribute.FileTime
 
 internal class ArchiveFileSystem(
     private val provider: ArchiveFileSystemProvider,

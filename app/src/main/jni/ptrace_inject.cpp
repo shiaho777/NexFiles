@@ -56,16 +56,6 @@ struct UserRegs {
 
 namespace {
 
-// Read `len` bytes from the remote process at `addr` into `buf`.
-bool remote_read(pid_t pid, uintptr_t addr, void *buf, size_t len) {
-    // process_vm_readv is far cheaper than PTRACE_PEEKDATA word-by-word and is the right tool
-    // when we have read access to the target (root uid does).
-    iovec local{buf, len};
-    iovec remote{reinterpret_cast<void*>(addr), len};
-    ssize_t n = process_vm_readv(pid, &local, 1, &remote, 1, 0);
-    return n == static_cast<ssize_t>(len);
-}
-
 // Write `len` bytes from `buf` into the remote process at `addr`.
 bool remote_write(pid_t pid, uintptr_t addr, const void *buf, size_t len) {
     iovec local{const_cast<void*>(buf), len};

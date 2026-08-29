@@ -31,6 +31,8 @@ import me.zhanghai.android.files.ui.SimpleAdapter
 import me.zhanghai.android.files.util.ParcelableArgs
 import me.zhanghai.android.files.util.ParcelableParceler
 import me.zhanghai.android.files.util.args
+import me.zhanghai.android.files.util.copyText
+import me.zhanghai.android.files.util.layoutInflater
 import me.zhanghai.android.files.util.showToast
 import java.io.IOException
 

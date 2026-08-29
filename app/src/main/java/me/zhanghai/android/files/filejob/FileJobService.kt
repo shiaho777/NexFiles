@@ -41,8 +41,23 @@ class FileJobService : Service() {
         notificationManager = ForegroundNotificationManager(this)
         instance = this
 
+        cleanupStaleInstallCacheLocked()
+
         while (pendingJobs.isNotEmpty()) {
             startJob(pendingJobs.removeFirstCompat())
+        }
+    }
+
+    private fun cleanupStaleInstallCacheLocked() {
+        // Installs copy APKs into the cache with these prefixes and delete them in a finally,
+        // but a process death in between leaks them. At onCreate no job is running yet, so
+        // anything still here is stale.
+        val cacheDir = cacheDir ?: return
+        val staleFiles = cacheDir.listFiles { file ->
+            file.name.startsWith("split-bundle-") || file.name.startsWith("split-file-")
+        } ?: return
+        for (file in staleFiles) {
+            runCatching { file.delete() }
         }
     }
 
@@ -151,12 +166,12 @@ class FileJobService : Service() {
             startJob(InstallApkJob(file), context)
         }
 
-        /**
-         * Installs a split-APK bundle (.apks / .xapk) via a single PackageInstaller session so all
-         * splits land atomically. See [InstallSplitApksJob].
-         */
         fun installSplitApks(bundleFile: Path, context: Context) {
             startJob(InstallSplitApksJob(bundleFile), context)
+        }
+
+        fun installSplitApkFiles(apkFiles: List<Path>, context: Context) {
+            startJob(InstallSplitApkFilesJob(apkFiles), context)
         }
 
         fun open(file: Path, mimeType: MimeType, withChooser: Boolean, context: Context) {

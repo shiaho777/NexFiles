@@ -68,7 +68,7 @@ internal object DexSmaliBridge {
     fun assembleClass(smaliText: String, opcodes: Opcodes): ClassDef {
         val reader = StringReader(smaliText)
         // ANTLR3 lexer/parser pipeline — same as Smali.assembleSmaliFile but from a Reader.
-        val lexer = smaliFlexLexer(reader, opcodes.apiLevel)
+        val lexer = smaliFlexLexer(reader, opcodes.api)
         val tokens = CommonTokenStream(lexer)
         val parser = smaliParser(tokens)
         val result = parser.smali_file()
@@ -85,19 +85,17 @@ internal object DexSmaliBridge {
         treeStream.tokenStream = tokens
         val dexBuilder = DexBuilder(opcodes)
         val walker = smaliTreeWalker(treeStream)
-        walker.apiLevel = opcodes.apiLevel
-        walker.verboseErrors = true
-        walker.dexBuilder = dexBuilder
+        walker.setApiLevel(opcodes.api)
+        walker.setVerboseErrors(true)
+        walker.setDexBuilder(dexBuilder)
         walker.smali_file()
         val walkerErrors = walker.numberOfSyntaxErrors
         if (walkerErrors > 0) {
             throw IOException("Smali semantic errors ($walkerErrors) — check for invalid instructions or references")
         }
-        // Extract the assembled class from the DexBuilder.
-        val classes = dexBuilder.classes.toList()
-        if (classes.isEmpty()) {
-            throw IOException("Smali assembler produced no class definition — check for syntax errors")
-        }
-        return classes[0]
+        // Extract the assembled class from the DexBuilder's class pool.
+        val classDef = dexBuilder.classSection.getSortedClasses().firstOrNull()
+            ?: throw IOException("Smali assembler produced no class definition — check for syntax errors")
+        return classDef
     }
 }

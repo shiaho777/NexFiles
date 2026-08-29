@@ -6,7 +6,6 @@
 package me.zhanghai.android.files.hook.sandbox
 
 import android.app.Activity
-import android.app.ActivityThread
 import android.app.Instrumentation
 import android.content.ComponentName
 import android.content.Context
@@ -116,7 +115,10 @@ class SandboxedActivityLauncher(
         private const val TAG = "SandboxedActivityLaunch"
 
         private fun currentActivityThread(): Any? = try {
-            val method = ActivityThread::class.java.getDeclaredMethod("currentActivityThread")
+            // ActivityThread is a hidden class; reflection is the only route (the hidden-API
+            // restriction is disabled by HiddenApi before we get here).
+            val threadClass = Class.forName("android.app.ActivityThread")
+            val method = threadClass.getDeclaredMethod("currentActivityThread")
             method.isAccessible = true
             method.invoke(null)
         } catch (e: Exception) {
@@ -208,7 +210,7 @@ class SandboxedInstrumentation(
             .getMethod("addAssetPath", String::class.java)
         addAssetPath.isAccessible = true
         addAssetPath.invoke(assets, loadedApp.applicationInfo.sourceDir)
-        val metrics = android.util.DisplayMetrics().apply {.setToDefaults() }
+        val metrics = android.util.DisplayMetrics().apply { setToDefaults() }
         val config = android.content.res.Configuration()
         return Resources(assets, metrics, config)
     }

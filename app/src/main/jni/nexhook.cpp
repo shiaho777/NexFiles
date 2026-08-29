@@ -146,15 +146,17 @@ struct ElfContext {
 
 bool build_elf_context(const dl_phdr_info *info, ElfContext &ctx) {
     ctx.load_bias = info->dlpi_addr;
-    const ElfWPhdr *dynamic = nullptr;
+    const ElfWPhdr *dynamic_phdr = nullptr;
     for (int i = 0; i < info->dlpi_phnum; ++i) {
         const auto &phdr = info->dlpi_phdr[i];
         if (phdr.p_type == PT_DYNAMIC) {
-            dynamic = reinterpret_cast<const ElfWDyn*>(info->dlpi_addr + phdr.p_vaddr);
+            dynamic_phdr = &phdr;
             break;
         }
     }
-    if (dynamic == nullptr) return false;
+    if (dynamic_phdr == nullptr) return false;
+    const ElfWDyn *dynamic =
+        reinterpret_cast<const ElfWDyn*>(info->dlpi_addr + dynamic_phdr->p_vaddr);
 
     uintptr_t strtab = 0, symtab = 0, gnu_hash = 0, hash = 0;
     for (const ElfWDyn *dyn = dynamic; dyn->d_tag != DT_NULL; ++dyn) {

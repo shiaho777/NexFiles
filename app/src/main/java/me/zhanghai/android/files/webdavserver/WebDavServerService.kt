@@ -12,6 +12,7 @@ import android.os.IBinder
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import me.zhanghai.android.files.R
 import me.zhanghai.android.files.compat.mainExecutorCompat
 import me.zhanghai.android.files.settings.Settings
 import me.zhanghai.android.files.util.WakeWifiLock
@@ -68,7 +69,7 @@ class WebDavServerService : Service() {
                 val webDavServer = WebDavServer(port, homeDirectory, username, password)
                 webDavServer.start(SOCKET_READ_TIMEOUT, DEFAULT_BIND_INHERIT)
                 server = webDavServer
-                wakeWifiLock.acquire()
+                wakeWifiLock.isAcquired = true
                 state = State.RUNNING
                 mainExecutorCompat.execute {
                     startForeground(NOTIFICATION_ID, WebDavServerNotification.build(this, state))
@@ -93,9 +94,7 @@ class WebDavServerService : Service() {
                 server?.stop()
             } catch (ignored: Exception) {}
             server = null
-            if (wakeWifiLock.isHeld) {
-                wakeWifiLock.release()
-            }
+            wakeWifiLock.isAcquired = false
             state = State.STOPPED
         }
     }
