@@ -38,12 +38,9 @@ import androidx.appcompat.widget.Toolbar
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
-import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updatePaddingRelative
-import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.commit
 import androidx.lifecycle.LifecycleOwner
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -81,7 +78,6 @@ import me.zhanghai.android.files.filelist.FileSortOptions.Order
 import me.zhanghai.android.files.fileproperties.FilePropertiesDialogFragment
 import me.zhanghai.android.files.navigation.BookmarkDirectories
 import me.zhanghai.android.files.navigation.BookmarkDirectory
-import me.zhanghai.android.files.navigation.NavigationFragment
 import me.zhanghai.android.files.navigation.NavigationRootMapLiveData
 import me.zhanghai.android.files.provider.archive.ArchivePath
 import me.zhanghai.android.files.provider.archive.createArchiveRootPath
@@ -93,12 +89,10 @@ import me.zhanghai.android.files.settings.Settings
 import me.zhanghai.android.files.terminal.TerminalActivity
 import me.zhanghai.android.files.ui.AppBarLayoutExpandHackListener
 import me.zhanghai.android.files.ui.CoordinatorAppBarLayout
-import me.zhanghai.android.files.ui.DrawerLayoutOnBackPressedCallback
 import me.zhanghai.android.files.ui.FixQueryChangeSearchView
 import me.zhanghai.android.files.ui.OverlayToolbarActionMode
 import me.zhanghai.android.files.ui.PersistentBarLayout
 import me.zhanghai.android.files.ui.PersistentBarLayoutToolbarActionMode
-import me.zhanghai.android.files.ui.PersistentDrawerLayout
 import me.zhanghai.android.files.ui.ScrollingViewOnApplyWindowInsetsListener
 import me.zhanghai.android.files.ui.SpeedDialViewOnBackPressedCallback
 import me.zhanghai.android.files.ui.ThemedFastScroller
@@ -151,7 +145,7 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
     SignApkDialogFragment.Listener,
     RenameFileDialogFragment.Listener, CreateFileDialogFragment.Listener,
     CreateDirectoryDialogFragment.Listener, NavigateToPathDialogFragment.Listener,
-    NavigationFragment.Listener, ShowRequestAllFilesAccessRationaleDialogFragment.Listener,
+    ShowRequestAllFilesAccessRationaleDialogFragment.Listener,
     ShowRequestNotificationPermissionRationaleDialogFragment.Listener,
     ShowRequestNotificationPermissionInSettingsRationaleDialogFragment.Listener,
     ShowRequestStoragePermissionRationaleDialogFragment.Listener,
@@ -183,8 +177,6 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
     private val viewModel by viewModels { { FileListViewModel() } }
 
     private lateinit var binding: Binding
-
-    private lateinit var navigationFragment: NavigationFragment
 
     private lateinit var menuBinding: MenuBinding
 
@@ -219,10 +211,71 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         }
     }
 
+    private var isPaneActive: Boolean = true
+
+    private var navigateUpCallback: OnBackPressedCallback? = null
+
+    fun setPaneActive(active: Boolean) {
+        isPaneActive = active
+        if (!::binding.isInitialized) {
+            return
+        }
+        binding.root.alpha = if (active) 1f else 0.62f
+        setHasOptionsMenu(active)
+        navigateUpCallback?.isEnabled = active && viewModel.canNavigateUpBreadcrumb
+        if (!active) {
+            if (::overlayActionMode.isInitialized && overlayActionMode.isActive) {
+                overlayActionMode.finish()
+            }
+            if (binding.speedDialView.isOpen) {
+                binding.speedDialView.close()
+            }
+        } else {
+            (requireActivity() as FileListFragmentHost).setSupportToolbar(binding.toolbar)
+        }
+    }
+
+    fun onBecameActivePane() {
+        if (!::binding.isInitialized) {
+            return
+        }
+        (requireActivity() as FileListFragmentHost).setSupportToolbar(binding.toolbar)
+        setHasOptionsMenu(true)
+        (requireActivity() as FileListFragmentHost).invalidateOptionsMenu()
+    }
+
+    fun onHostDrawerStateChanged() {
+        if (::layoutManager.isInitialized) {
+            updateSpanCount()
+        }
+    }
+
+    fun onPaneBackPressed(): Boolean {
+        if (!isResumed) {
+            return false
+        }
+        if (overlayActionMode.isActive) {
+            overlayActionMode.finish()
+            return true
+        }
+        if (binding.speedDialView.isOpen) {
+            binding.speedDialView.close()
+            return true
+        }
+        if (viewModel.isSearchViewExpanded) {
+            collapseSearchView()
+            return true
+        }
+        if (viewModel.navigateUp()) {
+            return true
+        }
+        return false
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        setHasOptionsMenu(true)
+        setHasOptionsMenu(isPaneActive)
     }
 
     override fun onCreateView(
@@ -237,17 +290,21 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
 
-        if (savedInstanceState == null) {
-            navigationFragment = NavigationFragment()
-            childFragmentManager.commit { add(R.id.navigationFragment, navigationFragment) }
-        } else {
-            navigationFragment = childFragmentManager.findFragmentById(R.id.navigationFragment)
-                as NavigationFragment
-        }
-        navigationFragment.listener = this
         val host = requireActivity() as FileListFragmentHost
         host.setTitle(getString(R.string.file_list_title))
-        host.setSupportToolbar(binding.toolbar)
+        binding.root.setOnClickListener { host.requestActivePane(this) }
+        binding.recyclerView.setOnTouchListener { _, event ->
+            if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+                host.requestActivePane(this)
+            }
+            false
+        }
+        if (isPaneActive) {
+            host.setSupportToolbar(binding.toolbar)
+            setHasOptionsMenu(true)
+        } else {
+            setHasOptionsMenu(false)
+        }
         overlayActionMode = OverlayToolbarActionMode(binding.overlayToolbar)
         bottomActionMode = PersistentBarLayoutToolbarActionMode(
             binding.persistentBarLayout, binding.bottomBarLayout, binding.bottomToolbar
@@ -288,23 +345,18 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         }
 
         val viewLifecycleOwner = viewLifecycleOwner
-        addOnBackPressedCallback(
-            object : OnBackPressedCallback(false) {
-                override fun handleOnBackPressed() {
-                    viewModel.navigateUp()
-                }
+        navigateUpCallback = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                viewModel.navigateUp()
             }
-                .also { callback ->
-                    viewModel.breadcrumbLiveData.observe(viewLifecycleOwner) {
-                        callback.isEnabled = viewModel.canNavigateUpBreadcrumb
-                    }
-                }
-        )
+        }.also { callback ->
+            addOnBackPressedCallback(callback)
+            viewModel.breadcrumbLiveData.observe(viewLifecycleOwner) {
+                callback.isEnabled = isPaneActive && viewModel.canNavigateUpBreadcrumb
+            }
+        }
         addOnBackPressedCallback(overlayActionMode.onBackPressedCallback)
         addOnBackPressedCallback(SpeedDialViewOnBackPressedCallback(binding.speedDialView))
-        binding.drawerLayout?.let {
-            addOnBackPressedCallback(DrawerLayoutOnBackPressedCallback(it))
-        }
 
         if (!viewModel.hasTrail) {
             var path = argsPath
@@ -389,11 +441,6 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         // Live data only calls observeForever() on its sources when it is active, so we have to
         // make view type live data active first (so that it can load its initial value) before we
         // register another observer that needs to get the view type.
-        if (binding.persistentDrawerLayout != null) {
-            Settings.FILE_LIST_PERSISTENT_DRAWER_OPEN.observe(viewLifecycleOwner) {
-                onPersistentDrawerOpenChanged(it)
-            }
-        }
         viewModel.sortOptionsLiveData.observe(viewLifecycleOwner) { onSortOptionsChanged(it) }
         viewModel.viewSortPathSpecificLiveData.observe(viewLifecycleOwner) {
             onViewSortPathSpecificChanged(it)
@@ -487,6 +534,9 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         menu.findItem(R.id.action_search_in_results)?.isVisible = viewModel.canRefine
         // "Save archive changes" only applies when browsing inside an archive with pending edits.
         menu.findItem(R.id.action_archive_save)?.isVisible = currentPath.hasPendingArchiveEdits
+        val dualPane = (requireActivity() as FileListFragmentHost).isDualPane
+        menu.findItem(R.id.action_swap_panes)?.isVisible = dualPane
+        menu.findItem(R.id.action_open_in_other_pane)?.isVisible = dualPane
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -508,12 +558,15 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
                 true
             }
             android.R.id.home -> {
-                binding.drawerLayout?.openDrawer(GravityCompat.START)
-                if (binding.persistentDrawerLayout != null) {
-                    Settings.FILE_LIST_PERSISTENT_DRAWER_OPEN.putValue(
-                        !Settings.FILE_LIST_PERSISTENT_DRAWER_OPEN.valueCompat
-                    )
-                }
+                (requireActivity() as FileListFragmentHost).openDrawer()
+                true
+            }
+            R.id.action_swap_panes -> {
+                (requireActivity() as FileListFragmentHost).swapPanes()
+                true
+            }
+            R.id.action_open_in_other_pane -> {
+                (requireActivity() as FileListFragmentHost).openInOtherPane(currentPath)
                 true
             }
             R.id.action_view_list -> {
@@ -628,16 +681,6 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         return false
     }
 
-    private fun onPersistentDrawerOpenChanged(open: Boolean) {
-        binding.persistentDrawerLayout?.let {
-            if (open) {
-                it.openDrawer(GravityCompat.START)
-            } else {
-                it.closeDrawer(GravityCompat.START)
-            }
-        }
-        updateSpanCount()
-    }
 
     private fun onCurrentPathChanged(path: Path) {
         updateOverlayToolbar()
@@ -741,9 +784,11 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
             FileViewType.LIST -> 1
             FileViewType.GRID -> {
                 var widthDp = resources.configuration.screenWidthDp
-                val persistentDrawerLayout = binding.persistentDrawerLayout
-                if (persistentDrawerLayout != null &&
-                    persistentDrawerLayout.isDrawerOpen(GravityCompat.START)) {
+                val host = requireActivity() as FileListFragmentHost
+                if (host.isDualPane) {
+                    widthDp = widthDp / 2
+                }
+                if (host.isPersistentDrawerOpen()) {
                     widthDp -= getDimensionDp(R.dimen.navigation_max_width).roundToInt()
                 }
                 (widthDp / 180).coerceAtLeast(2)
@@ -1022,6 +1067,12 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
             menu.findItem(R.id.action_delete).isVisible = !isAnyFileReadOnly
             val areAllFilesArchiveFiles = files.all { it.isArchiveFile }
             menu.findItem(R.id.action_extract).isVisible = areAllFilesArchiveFiles
+            val areAllInstallable = files.isNotEmpty() && files.all {
+                it.mimeType.isApk ||
+                    it.name.endsWith(".apk", ignoreCase = true) ||
+                    isSplitApkBundleName(it.name)
+            }
+            menu.findItem(R.id.action_install)?.isVisible = areAllInstallable
             val isCurrentPathReadOnly = viewModel.currentPath.fileSystem.isReadOnly
             menu.findItem(R.id.action_archive).isVisible = !isCurrentPathReadOnly
         }
@@ -1067,6 +1118,10 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
             }
             R.id.action_extract -> {
                 extractFiles(viewModel.selectedFiles)
+                true
+            }
+            R.id.action_install -> {
+                installSelectedApks(viewModel.selectedFiles)
                 true
             }
             R.id.action_archive -> {
@@ -1134,6 +1189,41 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         copyFiles(files.mapTo(fileItemSetOf()) { it.createDummyArchiveRoot() })
         viewModel.selectFiles(files, false)
     }
+
+    private fun installSelectedApks(files: FileItemSet) {
+        val paths = makePathListForJob(files)
+        if (paths.isEmpty()) {
+            return
+        }
+        if (paths.size == 1) {
+            val path = paths.single()
+            val name = path.fileName?.toString().orEmpty()
+            if (isSplitApkBundleName(name)) {
+                FileJobService.installSplitApks(path, requireContext())
+            } else {
+                FileJobService.installApk(path, requireContext())
+            }
+        } else if (paths.all { path ->
+                path.fileName?.toString().orEmpty().endsWith(".apk", ignoreCase = true)
+            }) {
+            FileJobService.installSplitApkFiles(paths, requireContext())
+        } else {
+            for (path in paths) {
+                val name = path.fileName?.toString().orEmpty()
+                if (isSplitApkBundleName(name)) {
+                    FileJobService.installSplitApks(path, requireContext())
+                } else if (name.endsWith(".apk", ignoreCase = true)) {
+                    FileJobService.installApk(path, requireContext())
+                }
+            }
+        }
+        viewModel.selectFiles(files, false)
+    }
+
+    private fun isSplitApkBundleName(name: String): Boolean =
+        name.endsWith(".apks", ignoreCase = true) ||
+            name.endsWith(".xapk", ignoreCase = true) ||
+            name.endsWith(".apkm", ignoreCase = true)
 
     private fun showCreateArchiveDialog(files: FileItemSet) {
         CreateArchiveDialogFragment.show(files, this)
@@ -1405,8 +1495,7 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         }
         // Split-APK bundles (.apks / .xapk) are zips containing base + splits; install them as one
         // atomic PackageInstaller session rather than treating them as a plain archive to browse.
-        if (name.endsWith(".apks", ignoreCase = true) ||
-            name.endsWith(".xapk", ignoreCase = true)) {
+        if (isSplitApkBundleName(name)) {
             FileJobService.installSplitApks(file.path, requireContext())
             return
         }
@@ -1689,24 +1778,19 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         FileJobService.create(path, true, requireContext())
     }
 
-    override val currentPath: Path
+    val currentPath: Path
         get() = viewModel.currentPath
 
-    override fun navigateToRoot(path: Path) {
+    val currentPathLiveData
+        get() = viewModel.currentPathLiveData
+
+    fun navigateToRoot(path: Path) {
         collapseSearchView()
         viewModel.resetTo(path)
     }
 
-    override fun navigateToDefaultRoot() {
+    fun navigateToDefaultRoot() {
         navigateToRoot(Settings.FILE_LIST_DEFAULT_DIRECTORY.valueCompat)
-    }
-
-    override fun observeCurrentPath(owner: LifecycleOwner, observer: (Path) -> Unit) {
-        viewModel.currentPathLiveData.observe(owner, observer)
-    }
-
-    override fun closeNavigationDrawer() {
-        binding.drawerLayout?.closeDrawer(GravityCompat.START)
     }
 
     private fun ensureStorageAccess() {
@@ -1904,8 +1988,6 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
 
     private class Binding private constructor(
         val root: View,
-        val drawerLayout: DrawerLayout? = null,
-        val persistentDrawerLayout: PersistentDrawerLayout? = null,
         val persistentBarLayout: PersistentBarLayout,
         val appBarLayout: CoordinatorAppBarLayout,
         val toolbar: Toolbar,
@@ -1914,7 +1996,7 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         val contentLayout: ViewGroup,
         val progress: ProgressBar,
         val errorText: TextView,
-        val emptyView: View,
+        val emptyView: TextView,
         val swipeRefreshLayout: SwipeRefreshLayout,
         val recyclerView: RecyclerView,
         val bottomBarLayout: ViewGroup,
@@ -1936,7 +2018,7 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
                 val bottomBarBinding = FileListFragmentBottomBarIncludeBinding.bind(bindingRoot)
                 val speedDialBinding = FileListFragmentSpeedDialIncludeBinding.bind(bindingRoot)
                 return Binding(
-                    bindingRoot, includeBinding.drawerLayout, includeBinding.persistentDrawerLayout,
+                    bindingRoot,
                     includeBinding.persistentBarLayout, appBarBinding.appBarLayout,
                     appBarBinding.toolbar, appBarBinding.overlayToolbar,
                     appBarBinding.breadcrumbLayout, contentBinding.contentLayout,

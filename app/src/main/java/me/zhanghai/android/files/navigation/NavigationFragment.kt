@@ -22,7 +22,8 @@ class NavigationFragment : Fragment(), NavigationItem.Listener {
 
     private lateinit var adapter: NavigationListAdapter
 
-    lateinit var listener: Listener
+    private val listener: Listener
+        get() = (parentFragment as? Listener) ?: (requireActivity() as Listener)
 
     override fun onCreateView(
         inflater: LayoutInflater,

@@ -8,7 +8,6 @@ package me.zhanghai.android.files.provider.webdav.client
 import at.bitfire.dav4jvm.DavResource
 import at.bitfire.dav4jvm.DavResourceAccessor
 import at.bitfire.dav4jvm.QuotedStringUtils
-import at.bitfire.dav4jvm.ResponseCallback
 import at.bitfire.dav4jvm.exception.DavException
 import at.bitfire.dav4jvm.exception.HttpException
 import me.zhanghai.android.files.provider.common.DelegateOutputStream
@@ -31,8 +30,13 @@ import java.nio.ByteBuffer
 import java.util.concurrent.CountDownLatch
 
 @Throws(DavException::class, IOException::class)
-fun DavResource.getCompat(accept: String, headers: Headers?): InputStream =
-    get(accept, headers).also { checkStatus(it) }.body!!.byteStream()
+fun DavResource.getCompat(accept: String, headers: Headers?): InputStream {
+    // dav4jvm 2.1.4 delivers the Response through a callback; bridge it into this scope.
+    lateinit var response: Response
+    get(accept, headers) { response = it }
+    checkStatus(response)
+    return response.body!!.byteStream()
+}
 
 @Throws(DavException::class, IOException::class)
 fun DavResource.getRangeCompat(
@@ -148,7 +152,7 @@ fun DavResource.patchCompat(
     ifETag: String? = null,
     ifScheduleTag: String? = null,
     ifNoneMatch: Boolean = false,
-    callback: ResponseCallback
+    callback: (Response) -> Unit
 ) {
     followRedirects {
         val builder = Request.Builder()
@@ -171,7 +175,7 @@ fun DavResource.patchCompat(
         httpClient.newCall(builder.build()).execute()
     }.use { response ->
         checkStatus(response)
-        callback.onResponse(response)
+        callback(response)
     }
 }
 
@@ -182,14 +186,14 @@ fun DavResource.putRangeCompat(
     ifETag: String? = null,
     ifScheduleTag: String? = null,
     ifNoneMatch: Boolean = false,
-    callback: ResponseCallback
+    callback: (Response) -> Unit
 ) {
     followRedirects {
         val builder = Request.Builder()
             .put(buffer.toRequestBody())
             .url(location)
         val lastIndex = offset + buffer.remaining() - 1
-        builder.header("Range", "bytes=$offset-$lastIndex/*")
+        builder.header("Range", "bytes=$offset-$lastIndex" + "/*")
         if (ifETag != null) {
             // only overwrite specific version
             builder.header("If-Match", QuotedStringUtils.asQuotedString(ifETag))
@@ -205,7 +209,7 @@ fun DavResource.putRangeCompat(
         httpClient.newCall(builder.build()).execute()
     }.use { response ->
         checkStatus(response)
-        callback.onResponse(response)
+        callback(response)
     }
 }
 

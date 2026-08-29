@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * This class is constructed by Shizuku on the remote side (see
  * [ShizukuTerminalServiceInterface]); it must not be instantiated in the app process.
  */
-class TerminalServiceInterface : IRemoteTerminalService.Stub() {
+open class TerminalServiceInterface : IRemoteTerminalService.Stub() {
 
     private val pumpExecutor = Executors.newCachedThreadPool { r ->
         Thread(r, "terminal-pump").apply { isDaemon = true }

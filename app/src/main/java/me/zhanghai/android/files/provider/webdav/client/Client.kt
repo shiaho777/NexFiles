@@ -20,10 +20,10 @@ import at.bitfire.dav4jvm.exception.NotFoundException
 import at.bitfire.dav4jvm.exception.PreconditionFailedException
 import at.bitfire.dav4jvm.exception.ServiceUnavailableException
 import at.bitfire.dav4jvm.exception.UnauthorizedException
-import at.bitfire.dav4jvm.property.webdav.CreationDate
-import at.bitfire.dav4jvm.property.webdav.GetContentLength
-import at.bitfire.dav4jvm.property.webdav.GetLastModified
-import at.bitfire.dav4jvm.property.webdav.ResourceType
+import at.bitfire.dav4jvm.property.CreationDate
+import at.bitfire.dav4jvm.property.GetContentLength
+import at.bitfire.dav4jvm.property.GetLastModified
+import at.bitfire.dav4jvm.property.ResourceType
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -212,19 +212,10 @@ object Client {
 
     @Throws(DavException::class)
     fun setLastModifiedTime(path: Path, lastModifiedTime: Instant) {
-        if (true) {
-            return
-        }
-        // The following doesn't work on most servers. See also
+        // dav4jvm 2.1.4 has no PROPPATCH support, and setting the last-modified time remotely
+        // doesn't work on most servers anyway. See also
         // https://github.com/sabre-io/dav/issues/1277
-        try {
-            DavResource(getClient(path.authority), path.url).proppatch(
-                mapOf(GetLastModified.NAME to HttpUtils.formatDate(lastModifiedTime)), emptyList()
-            ) { response, _ -> response.checkSuccess() }
-        } catch (e: IOException) {
-            throw e.toDavException()
-        }
-        LocalWatchService.onEntryModified(path as Java8Path)
+        return
     }
 
     @Throws(DavException::class)

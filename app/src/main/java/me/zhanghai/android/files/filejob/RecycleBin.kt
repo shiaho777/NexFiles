@@ -10,6 +10,7 @@ import java8.nio.file.Path
 import java8.nio.file.Paths
 import java8.nio.file.attribute.BasicFileAttributes
 import me.zhanghai.android.files.app.application
+import me.zhanghai.android.files.provider.common.readAttributes
 import me.zhanghai.android.files.provider.linux.isLinuxPath
 import me.zhanghai.android.files.settings.Settings
 import me.zhanghai.android.files.util.valueCompat
@@ -30,7 +31,7 @@ import java.util.Locale
  */
 object RecycleBin {
     private val TRASH_DIR: Path by lazy {
-        Paths.get(application.filesDir, ".nexfiles_trash").also {
+        Paths.get(application.filesDir.path, ".nexfiles_trash").also {
             try {
                 Files.createDirectories(it)
             } catch (e: Exception) {

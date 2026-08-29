@@ -107,7 +107,7 @@ class TerminalView @JvmOverloads constructor(
             KeyEvent.KEYCODE_TAB -> byteArrayOf('\t'.code.toByte())
             KeyEvent.KEYCODE_DEL -> byteArrayOf(0x7f)  // DEL, what bash expects for backspace
             KeyEvent.KEYCODE_HOME -> "\u001b[H".toByteArray()
-            KeyEvent.KEYCODE_END -> "\u001b[F".toByteArray()
+            KeyEvent.KEYCODE_MOVE_END -> "\u001b[F".toByteArray()
             KeyEvent.KEYCODE_PAGE_UP -> "\u001b[5~".toByteArray()
             KeyEvent.KEYCODE_PAGE_DOWN -> "\u001b[6~".toByteArray()
             else -> {

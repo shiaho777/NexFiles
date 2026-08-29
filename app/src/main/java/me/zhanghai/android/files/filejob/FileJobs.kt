@@ -6,6 +6,7 @@
 package me.zhanghai.android.files.filejob
 
 import android.app.PendingIntent
+import android.content.pm.PackageInstaller
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -33,6 +34,7 @@ import me.zhanghai.android.files.apksign.ApkSigner
 import me.zhanghai.android.files.apksign.ApkSignerConfig
 import me.zhanghai.android.files.apksign.ApkSignatureStripper
 import me.zhanghai.android.files.app.BackgroundActivityStarter
+import me.zhanghai.android.files.app.application
 import me.zhanghai.android.files.app.mainExecutor
 import me.zhanghai.android.files.compat.mainExecutorCompat
 import me.zhanghai.android.files.file.FileItem
@@ -73,6 +75,7 @@ import me.zhanghai.android.files.provider.common.isDirectory
 import me.zhanghai.android.files.provider.common.moveTo
 import me.zhanghai.android.files.provider.common.newByteChannel
 import me.zhanghai.android.files.provider.common.newDirectoryStream
+import me.zhanghai.android.files.provider.common.newInputStream
 import me.zhanghai.android.files.provider.common.newOutputStream
 import me.zhanghai.android.files.provider.common.readAttributes
 import me.zhanghai.android.files.provider.common.resolveForeign
@@ -89,6 +92,7 @@ import me.zhanghai.android.files.util.createInstallPackageIntent
 import me.zhanghai.android.files.util.createIntent
 import me.zhanghai.android.files.util.createViewIntent
 import me.zhanghai.android.files.util.extraPath
+import me.zhanghai.android.files.util.getPackageArchiveInfoCompat
 import me.zhanghai.android.files.util.getQuantityString
 import me.zhanghai.android.files.util.putArgs
 import me.zhanghai.android.files.util.showToast
@@ -1491,74 +1495,131 @@ class InstallApkJob(private val file: Path) : FileJob() {
     }
 }
 
-/**
- * Installs a multi-package APK bundle (.apks / .xapk), which is a zip containing the base APK plus
- * optional split APKs (per-ABI, density, language, etc.). Uses [PackageInstaller.Session] so all
- * splits are committed atomically — either the whole app installs or nothing does, which is what
- * these bundle formats require.
- *
- * Only the zip parsing + session commit happens here; the actual install confirmation still goes
- * through the system installer UI, same as a single APK.
- */
 class InstallSplitApksJob(private val bundleFile: Path) : FileJob() {
     override fun run() {
-        installSplitApks(bundleFile)
-    }
-
-    @Throws(IOException::class)
-    private fun installSplitApks(file: Path) {
-        // Extract every *.apk entry from the bundle into the cache dir, then hand them all to a
-        // single PackageInstaller session. We can't stream directly from the zip because the
-        // session API needs seekable file-based sources.
-        val packageManager = service.packageManager
-        val packageInstaller = packageManager.packageInstaller
-        val cacheDir = service.cacheDir
-        val extractedApks = mutableListOf<File>()
-
+        postNotification(
+            getString(R.string.file_install_split_preparing),
+            getFileName(bundleFile),
+            null,
+            null,
+            0,
+            0,
+            true,
+            false
+        )
+        val extracted = extractApksFromBundle(bundleFile)
         try {
-            file.newInputStream().use { input ->
-                ZipArchiveInputStream(input).use { zip ->
-                    var entry = zip.nextZipArchiveEntry
-                    while (entry != null) {
-                        if (entry.name.endsWith(".apk") && !entry.isDirectory) {
-                            val outFile = File(cacheDir, "split-${extractedApks.size}.apk")
-                            FileOutputStream(outFile).use { out -> zip.copyTo(out) }
-                            extractedApks.add(outFile)
-                        }
-                        entry = zip.nextZipArchiveEntry
-                    }
-                }
-            }
-            if (extractedApks.isEmpty()) {
-                throw IOException("No APK entries found in bundle")
-            }
+            commitPackageInstallerSession(extracted)
+        } finally {
+            extracted.forEach { runCatching { it.delete() } }
+        }
+    }
+}
 
-            // Create one session for the whole bundle and add each split.
-            val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
-            val sessionId = packageInstaller.createSession(params)
-            packageInstaller.openSession(sessionId).use { session ->
-                for ((index, apkFile) in extractedApks.withIndex()) {
-                    val length = apkFile.length()
-                    apkFile.inputStream().use { input ->
-                        session.openWrite("split-$index", 0, length).use { out ->
-                            input.copyTo(out)
-                            session.fsync(out)
-                        }
-                    }
+class InstallSplitApkFilesJob(private val apkFiles: List<Path>) : FileJob() {
+    override fun run() {
+        if (apkFiles.isEmpty()) {
+            return
+        }
+        postNotification(
+            getString(R.string.file_install_split_preparing),
+            getFileName(apkFiles.first()),
+            null,
+            null,
+            0,
+            0,
+            true,
+            false
+        )
+        val cached = mutableListOf<File>()
+        try {
+            for ((index, path) in apkFiles.withIndex()) {
+                val outFile = File(service.cacheDir, "split-file-$index.apk")
+                path.newInputStream().use { input ->
+                    FileOutputStream(outFile).use { out -> input.copyTo(out) }
                 }
-                // Commit hands off to the system installer; the user still sees the confirm dialog.
-                val intent = Intent(service, FileJobService::class.java)
-                val pendingIntent = PendingIntent.getBroadcast(
-                    service, sessionId, intent, PendingIntent.FLAG_UPDATE_CURRENT
-                        or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-                        PendingIntent.FLAG_MUTABLE else 0
-                )
-                session.commit(pendingIntent.intentSender)
+                cached.add(outFile)
+            }
+            // A multi-package session only makes sense for APKs of one application; unrelated
+            // APKs must go through separate sessions or some package managers reject them.
+            for (group in cached.groupByPackageName()) {
+                commitPackageInstallerSession(group)
             }
         } finally {
-            // Clean up extracted splits regardless of success/failure.
-            extractedApks.forEach { runCatching { it.delete() } }
+            cached.forEach { runCatching { it.delete() } }
         }
+    }
+}
+
+private fun List<File>.groupByPackageName(): List<List<File>> {
+    val groups = LinkedHashMap<String, MutableList<File>>()
+    for ((index, apkFile) in withIndex()) {
+        // The cached files are plain linux paths, so the Path-based overload applies; it returns
+        // the archive's package name plus an optional Closeable (none for linux paths).
+        val packageName = runCatching {
+            application.packageManager.getPackageArchiveInfoCompat(
+                Paths.get(apkFile.absolutePath), 0
+            )
+        }
+            .getOrNull()
+            ?.first
+            ?.packageName
+            ?: "unparsable-$index"
+        groups.getOrPut(packageName) { mutableListOf() }.add(apkFile)
+    }
+    return groups.values.toList()
+}
+
+@Throws(IOException::class)
+private fun FileJob.extractApksFromBundle(file: Path): List<File> {
+    val extractedApks = mutableListOf<File>()
+    file.newInputStream().use { input ->
+        ZipArchiveInputStream(input).use { zip ->
+            var entry = zip.nextZipEntry
+            while (entry != null) {
+                val name = entry.name.substringAfterLast('/').substringAfterLast('\\')
+                if (!entry.isDirectory && name.endsWith(".apk", ignoreCase = true)) {
+                    val outFile = File(service.cacheDir, "split-bundle-${extractedApks.size}-$name")
+                    FileOutputStream(outFile).use { out -> zip.copyTo(out) }
+                    extractedApks.add(outFile)
+                }
+                entry = zip.nextZipEntry
+            }
+        }
+    }
+    if (extractedApks.isEmpty()) {
+        throw IOException("No APK entries found in bundle")
+    }
+    return extractedApks
+}
+
+@Throws(IOException::class)
+private fun FileJob.commitPackageInstallerSession(apkFiles: List<File>) {
+    val packageInstaller = service.packageManager.packageInstaller
+    val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        params.setInstallReason(android.content.pm.PackageManager.INSTALL_REASON_USER)
+    }
+    val sessionId = packageInstaller.createSession(params)
+    packageInstaller.openSession(sessionId).use { session ->
+        for ((index, apkFile) in apkFiles.withIndex()) {
+            val length = apkFile.length()
+            val sessionName = apkFile.name.ifEmpty { "split-$index.apk" }
+            apkFile.inputStream().use { input ->
+                session.openWrite(sessionName, 0, length).use { out ->
+                    input.copyTo(out)
+                    session.fsync(out)
+                }
+            }
+        }
+        var flags = PendingIntent.FLAG_UPDATE_CURRENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            flags = flags or PendingIntent.FLAG_MUTABLE
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            service, sessionId, PackageInstallerStatusReceiver.createIntent(), flags
+        )
+        session.commit(pendingIntent.intentSender)
     }
 }
 

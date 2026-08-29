@@ -62,8 +62,8 @@ internal object ApkV2V3Signer {
     private const val PSS_SALT_LENGTH = 32
 
     // Block IDs for the APK Signing Block pairs.
-    private const val V2_BLOCK_ID = 0x7109871A
-    private const val V3_BLOCK_ID = 0xF05368C0
+    private const val V2_BLOCK_ID = 0x7109871A.toInt()
+    private const val V3_BLOCK_ID = 0xF05368C0.toInt()
 
     private val APK_SIGNING_BLOCK_MAGIC =
         byteArrayOf( // "APK Sig Block 42"
@@ -165,7 +165,7 @@ internal object ApkV2V3Signer {
         val rangeSize = end - start
         val sha = MessageDigest.getInstance("SHA-256")
         // Top-level: 0x5a | uint32_le(chunk_count) | concat(chunk_digests)
-        sha.update(0x5a)
+        sha.update(0x5a.toByte())
         if (rangeSize <= 0) {
             sha.update(BytesLe.uint32(0)) // chunk_count = 0
             return sha.digest()
@@ -188,7 +188,7 @@ internal object ApkV2V3Signer {
             file.seek(offset)
             file.readFully(buffer, 0, chunkLen)
             val chunkSha = MessageDigest.getInstance("SHA-256")
-            chunkSha.update(0xA5)
+            chunkSha.update(0xA5.toByte())
             chunkSha.update(BytesLe.uint32(chunkLen.toLong()))
             chunkSha.update(buffer, 0, chunkLen)
             sha.update(chunkSha.digest())

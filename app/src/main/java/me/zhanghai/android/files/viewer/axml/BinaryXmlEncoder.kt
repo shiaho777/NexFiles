@@ -251,13 +251,14 @@ internal object BinaryXmlEncoder {
                 idx to idx
             }
             TYPE_INT_BOOLEAN -> (if (value == "true") 1 else 0) to -1
-            TYPE_INT_DEC -> value.toIntOrNull() ?: 0 to -1
-            TYPE_INT_HEX -> value.removePrefix("0x").toIntOrNull(16) ?: 0 to -1
+            TYPE_INT_DEC -> (value.toIntOrNull() ?: 0) to -1
+            TYPE_INT_HEX -> (value.removePrefix("0x").toIntOrNull(16) ?: 0) to -1
             TYPE_REFERENCE -> {
                 val refStr = value.removePrefix("@").removePrefix("android:")
-                refStr.removePrefix("0x").toIntOrNull(16)
+                val ref = refStr.removePrefix("0x").toIntOrNull(16)
                     ?: refStr.toIntOrNull() ?: 0
-            } to -1
+                ref to -1
+            }
             else -> 0 to -1
         }
     }

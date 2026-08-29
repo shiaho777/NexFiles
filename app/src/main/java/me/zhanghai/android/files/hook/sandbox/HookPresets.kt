@@ -115,7 +115,7 @@ object HookPresets {
                 "java.net.URI", "<init>", arrayOf("java.lang.String"), HookRule.LOG_CALLS
             ),
             HookTarget(
-                "okhttp3.Request$Builder", "url",
+                "okhttp3.Request\$Builder", "url",
                 arrayOf("java.lang.String"), HookRule.LOG_CALLS
             ),
             HookTarget(

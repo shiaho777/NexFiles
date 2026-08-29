@@ -13,12 +13,14 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.parcelize.Parcelize
 import me.zhanghai.android.files.R
 import me.zhanghai.android.files.databinding.BatchRenameDialogBinding
+import me.zhanghai.android.files.file.FileItem
 import me.zhanghai.android.files.filejob.FileJobService
 import me.zhanghai.android.files.util.ParcelableArgs
 import me.zhanghai.android.files.util.args
 import me.zhanghai.android.files.util.finish
 import me.zhanghai.android.files.util.layoutInflater
 import me.zhanghai.android.files.util.putArgs
+import me.zhanghai.android.files.util.show
 import me.zhanghai.android.files.util.showToast
 
 /**

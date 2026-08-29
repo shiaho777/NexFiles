@@ -355,7 +355,7 @@ class FileListViewModel : ViewModel() {
         private val _pasteStateLiveData = MutableLiveData(PasteState())
     }
 
-    private class FileListSwitchMapLiveData(
+    private inner class FileListSwitchMapLiveData(
         private val pathLiveData: LiveData<Path>,
         private val searchStateLiveData: LiveData<SearchState>
     ) : MediatorLiveData<Stateful<List<FileItem>>>(), Closeable {

@@ -20,10 +20,12 @@ import org.jf.dexlib2.iface.reference.StringReference
 import org.jf.dexlib2.iface.reference.TypeReference
 import org.jf.dexlib2.iface.value.StringEncodedValue
 import org.jf.dexlib2.immutable.ImmutableClassDef
+import org.jf.dexlib2.immutable.ImmutableAnnotation
 import org.jf.dexlib2.immutable.ImmutableDexFile
 import org.jf.dexlib2.immutable.ImmutableField
 import org.jf.dexlib2.immutable.ImmutableMethod
 import org.jf.dexlib2.immutable.ImmutableMethodImplementation
+import org.jf.dexlib2.immutable.ImmutableMethodParameter
 import org.jf.dexlib2.immutable.instruction.ImmutableInstruction
 import org.jf.dexlib2.immutable.instruction.ImmutableInstruction21c
 import org.jf.dexlib2.immutable.reference.ImmutableFieldReference
@@ -56,9 +58,9 @@ class DexEditorModel private constructor(
     private val backedDexFile: DexBackedDexFile,
     val opcodes: Opcodes
 ) {
-    /** DEX format version (35, 37, 38, 39, 40...), derived from the header magic. */
+    /** DEX format version (35, 37, 38, 39...), derived from the header magic. */
     val dexVersion: Int
-        get() = opcodes.dexVersion
+        get() = opcodes.api
 
     /** Snapshot of classes, sorted by type for stable display. */
     val classes: List<ClassDef>
@@ -315,7 +317,6 @@ class DexEditorModel private constructor(
         method: Method, oldType: String, newType: String, onReplace: () -> Unit
     ): ImmutableMethod {
         val defClass = if (method.definingClass == oldType) { onReplace(); newType } else method.definingClass
-        val params = method.parameters.map { if (it == oldType) { onReplace(); newType } else it }
         val retType = if (method.returnType == oldType) { onReplace(); newType } else method.returnType
         val impl = method.implementation
         val newImpl = if (impl != null) {
@@ -323,8 +324,14 @@ class DexEditorModel private constructor(
             ImmutableMethodImplementation(impl.registerCount, newInsns, impl.tryBlocks, impl.debugItems)
         } else null
         return ImmutableMethod(
-            defClass, method.name, params, retType, method.accessFlags,
-            method.annotations, method.hiddenApiRestrictions, newImpl
+            defClass, method.name,
+            method.parameters.map { p ->
+                val pType = if (p.type == oldType) { onReplace(); newType } else p.type
+                ImmutableMethodParameter(pType, p.annotations, p.name)
+            },
+            retType, method.accessFlags,
+            method.annotations.map { ImmutableAnnotation.of(it) }.toSet(),
+            method.hiddenApiRestrictions, newImpl
         )
     }
 
@@ -386,7 +393,13 @@ class DexEditorModel private constructor(
             } else {
                 if (isTarget) {
                     onReplace()
-                    ImmutableMethod.of(m).let { ImmutableMethod(it.definingClass, newName, it.parameterTypes, it.returnType, it.accessFlags, it.annotations, it.hiddenApiRestrictions, null) }
+                    ImmutableMethod.of(m).let {
+                        ImmutableMethod(
+                            it.definingClass, newName,
+                            it.parameters, it.returnType, it.accessFlags,
+                            it.annotations, it.hiddenApiRestrictions, null
+                        )
+                    }
                 } else ImmutableMethod.of(m)
             }
         }
@@ -472,8 +485,11 @@ class DexEditorModel private constructor(
             if (isTarget) {
                 onReplace()
                 ImmutableMethod(
-                    m.definingClass, m.name, newParameters, newReturnType, m.accessFlags,
-                    m.annotations, m.hiddenApiRestrictions,
+                    m.definingClass, m.name,
+                    newParameters.map { ImmutableMethodParameter(it, emptySet(), null) },
+                    newReturnType, m.accessFlags,
+                    m.annotations.map { ImmutableAnnotation.of(it) }.toSet(),
+                    m.hiddenApiRestrictions,
                     if (newInsns != null && impl != null) ImmutableMethodImplementation(
                         impl.registerCount, newInsns, impl.tryBlocks, impl.debugItems
                     ) else null

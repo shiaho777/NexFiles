@@ -286,6 +286,12 @@
     <string name="file_open_as_type_any">其他</string>
     <string name="file_install_apk_from_background_title_format">“%1$s”已可安装</string>
     <string name="file_install_apk_from_background_text">点按即可安装</string>
+    <string name="file_install_split_success">应用安装成功</string>
+    <string name="file_install_split_failed">应用安装失败</string>
+    <string name="file_list_select_action_install">安装</string>
+    <string name="file_install_split_preparing">正在准备分包安装…</string>
+    <string name="file_install_confirm_required_title">需要确认安装</string>
+    <string name="file_install_confirm_required_text">点按以确认安装</string>
     <string name="file_open_from_background_title_format">“%1$s”已可打开</string>
     <string name="file_open_from_background_text">点按即可打开</string>
     <string name="file_name_error_empty">文件名不能为空</string>
@@ -719,6 +725,10 @@
     </string-array>
     <string name="settings_black_night_mode">黑色夜间模式</string>
     <string name="settings_file_list_animation_title">文件列表动画</string>
+    <string name="settings_file_list_dual_pane_title">大屏双窗格</string>
+    <string name="settings_file_list_dual_pane_summary">平板横屏时左右并排显示两个文件窗格</string>
+    <string name="file_list_action_swap_panes">交换窗格</string>
+    <string name="file_list_action_open_in_other_pane">在另一窗格打开</string>
     <string name="settings_file_name_ellipsize_title">显示长文件名</string>
     <string-array name="settings_file_name_ellipsize_entries">
         <item>省略开头</item>

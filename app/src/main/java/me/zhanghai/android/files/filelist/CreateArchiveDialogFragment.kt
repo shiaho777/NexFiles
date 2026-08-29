@@ -117,6 +117,11 @@ class CreateArchiveDialogFragment : FileNameDialogFragment() {
         fun show(files: FileItemSet, fragment: Fragment) {
             CreateArchiveDialogFragment().putArgs(Args(files)).show(fragment)
         }
+
+        // Levels map 1:1 to the spinner entries in the layout. null means "use libarchive's
+        // default", which we keep as the first entry so casual users get sane behaviour without
+        // having to understand compression levels.
+        private val compressionLevels = listOf<Int?>(null, 0, 1, 3, 5, 6, 7, 9)
     }
 
     @Parcelize
@@ -154,12 +159,5 @@ class CreateArchiveDialogFragment : FileNameDialogFragment() {
             encryption: ArchiveEncryption,
             compressionLevel: Int?
         )
-    }
-
-    companion object {
-        // Levels map 1:1 to the spinner entries in the layout. null means "use libarchive's
-        // default", which we keep as the first entry so casual users get sane behaviour without
-        // having to understand compression levels.
-        private val compressionLevels = listOf<Int?>(null, 0, 1, 3, 5, 6, 7, 9)
     }
 }

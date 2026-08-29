@@ -23,6 +23,7 @@ import me.zhanghai.android.files.util.args
 import me.zhanghai.android.files.util.finish
 import me.zhanghai.android.files.util.layoutInflater
 import me.zhanghai.android.files.util.putArgs
+import me.zhanghai.android.files.util.show
 import me.zhanghai.android.files.util.showToast
 import me.zhanghai.android.files.util.toHexString
 import java.security.MessageDigest
@@ -64,7 +65,7 @@ class ChecksumListDialogFragment : AppCompatDialogFragment() {
                     val clipboard = requireContext()
                         .getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.app_name), text))
-                    showToast(R.string.preference_copied)
+                    showToast(R.string.copied_to_clipboard_format)
                 }
             }
             .setNegativeButton(android.R.string.cancel) { _, _ -> finish() }

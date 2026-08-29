@@ -35,6 +35,12 @@
         app:showAsAction="always" />
 
     <item
+        android:id="@+id/action_install"
+        android:orderInCategory="100"
+        android:title="@string/file_list_select_action_install"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_extract"
         android:orderInCategory="100"
         android:title="@string/file_list_select_action_extract"

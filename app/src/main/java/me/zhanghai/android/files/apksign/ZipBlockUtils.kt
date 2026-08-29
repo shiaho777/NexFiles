@@ -94,12 +94,12 @@ internal object ZipBlockUtils {
         val magicLo = file.readLong()
         val magicHi = file.readLong()
         // Java's readLong is big-endian; the on-disk format is little-endian.
-        if (Long.reverseBytes(magicLo) != APK_SIG_BLOCK_MAGIC_LO ||
-            Long.reverseBytes(magicHi) != APK_SIG_BLOCK_MAGIC_HI
+        if (java.lang.Long.reverseBytes(magicLo) != APK_SIG_BLOCK_MAGIC_LO ||
+            java.lang.Long.reverseBytes(magicHi) != APK_SIG_BLOCK_MAGIC_HI
         ) {
             return null
         }
-        val leSizeOfBlock = Long.reverseBytes(sizeOfBlock)
+        val leSizeOfBlock = java.lang.Long.reverseBytes(sizeOfBlock)
         val blockStart = cdOffset - leSizeOfBlock - APK_SIG_BLOCK_HEADER_SIZE
         if (blockStart < 0) return null
         val blockSize = leSizeOfBlock

@@ -68,10 +68,10 @@ object PtraceInjectorNative {
 class PtraceRemoteInvoker : RemoteInvoker {
     override fun invokeInProcess(
         targetProcess: Int,
-        payload: Any,
+        payload: HookPayload,
         block: () -> Int
     ): Int {
-        val path = (payload as? HookPayload)?.nexhookPath ?: return -1
+        val path = payload.nexhookPath
         val handle = PtraceInjectorNative.injectLibrary(targetProcess, path)
         if (handle == 0L) return -1
         return block()

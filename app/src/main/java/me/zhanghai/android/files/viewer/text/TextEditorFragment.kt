@@ -323,12 +323,12 @@ class TextEditorFragment : Fragment(), ConfirmReloadDialogFragment.Listener,
     }
 
     private fun showFindBar() {
-        binding.findBar.isVisible = true
+        binding.findBar.root.isVisible = true
         binding.findBar.findEdit.requestFocus()
     }
 
     private fun hideFindBar() {
-        binding.findBar.isVisible = false
+        binding.findBar.root.isVisible = false
         clearFind()
     }
 
@@ -338,7 +338,7 @@ class TextEditorFragment : Fragment(), ConfirmReloadDialogFragment.Listener,
         binding.findBar.findCountText.text = null
         binding.findBar.findCountText.isVisible = false
         // Strip any highlight span we added; the underlying text is untouched.
-        val editable = binding.textEdit.text
+        val editable = binding.textEdit.text ?: return
         val spans = editable.getSpans(0, editable.length, BackgroundColorSpan::class.java)
         for (span in spans) {
             editable.removeSpan(span)
@@ -347,7 +347,7 @@ class TextEditorFragment : Fragment(), ConfirmReloadDialogFragment.Listener,
 
     private fun performFind() {
         val query = binding.findBar.findEdit.text.toString()
-        val editable = binding.textEdit.text
+        val editable = binding.textEdit.text ?: return
         clearFind()
         if (query.isEmpty()) {
             return
@@ -396,7 +396,7 @@ class TextEditorFragment : Fragment(), ConfirmReloadDialogFragment.Listener,
         if (findCurrentIndex !in findMatches.indices) {
             return
         }
-        val editable = binding.textEdit.text
+        val editable = binding.textEdit.text ?: return
         // Remove only the spans we own (background highlights), leaving selection untouched.
         val spans = editable.getSpans(0, editable.length, BackgroundColorSpan::class.java)
         for (span in spans) {

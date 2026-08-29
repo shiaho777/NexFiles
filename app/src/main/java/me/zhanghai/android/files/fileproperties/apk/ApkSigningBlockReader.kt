@@ -282,7 +282,13 @@ object ApkSigningBlockReader {
                     certDerList += der
                 }
                 if (certDerList.isNotEmpty()) {
-                    signers += certDerList.toSignerInfo(scheme, digestAlgorithms.toList())
+                    val signerCertSha256 = certDerList.first().sha256Hex()
+                    signers += ApkSignerInfo(
+                        scheme = scheme,
+                        certificateDerList = certDerList.toList(),
+                        signerCertSha256 = signerCertSha256,
+                        digestAlgorithms = digestAlgorithms.toList()
+                    )
                 }
             }
             signers
