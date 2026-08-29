@@ -25,6 +25,5 @@
         app:resize_mode="fit"
         app:use_controller="true"
         app:show_buffering="when_playing"
-        app:controller_hide_on_touch="true"
         app:auto_show="true" />
 </FrameLayout>

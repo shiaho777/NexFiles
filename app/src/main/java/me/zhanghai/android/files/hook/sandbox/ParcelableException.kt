@@ -25,11 +25,15 @@ class ParcelableException() : Parcelable {
     }
 
     constructor(source: Parcel) : this() {
-        className = source.readString()
-        message = source.readString()
+        readFromParcel(source)
     }
 
     override fun describeContents(): Int = 0
+
+    fun readFromParcel(source: Parcel) {
+        className = source.readString()
+        message = source.readString()
+    }
 
     override fun writeToParcel(dest: Parcel, flags: Int) {
         dest.writeString(className)

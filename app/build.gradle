@@ -30,6 +30,9 @@ android {
                 // lsplant is C++ and needs a C++ STL; the existing C-only libs (hiddenapi,
                 // syscall, terminal) are unaffected by switching from `none` to c++_static.
                 arguments '-DANDROID_STL=c++_static'
+                // shadowhook ships native libraries for ARM only, so x86 emulator builds
+                // can't link the hook bridge.
+                abiFilters 'armeabi-v7a', 'arm64-v8a'
             }
         }
     }
@@ -118,7 +121,9 @@ dependencies {
     // for lsplant. lsplant delegates native code patching to its host; ShadowHook implements
     // that with a battle-tested arm64/arm32 trampoline installer. MIT-licensed, prefab, so our
     // nexhook.cpp links it directly. This closes the one gap that made lsplant::Init fail.
-    implementation 'com.bytedance.android:shadowhook:2.0.1'
+    // 2.0.1 ships AAR metadata requiring minCompileSdk 37 (AGP 9.1.0 caps at 36); 2.0.0 has
+    // minCompileSdk 1 and the same inline-hook backend API we use.
+    implementation 'com.bytedance.android:shadowhook:2.0.0'
 }
 
 dependencies {

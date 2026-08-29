@@ -65,15 +65,6 @@ static jclass findClass(JNIEnv *env, const char *name) {
     return globalClass;
 }
 
-static jmethodID findMethod(JNIEnv *env, jclass clazz, const char *name, const char *signature) {
-    jmethodID method = (*env)->GetMethodID(env, clazz, name, signature);
-    if (!method) {
-        ALOGE("Failed to find method '%s' '%s'", name, signature);
-        abort();
-    }
-    return method;
-}
-
 static jclass getIoExceptionClass(JNIEnv *env) {
     static jclass ioExceptionClass;
     if (!ioExceptionClass) {
