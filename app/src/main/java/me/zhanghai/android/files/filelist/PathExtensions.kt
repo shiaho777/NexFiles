@@ -10,12 +10,17 @@ import me.zhanghai.android.files.file.MimeType
 import me.zhanghai.android.files.file.isSupportedArchive
 import me.zhanghai.android.files.provider.archive.archiveFile
 import me.zhanghai.android.files.provider.archive.isArchivePath
+import me.zhanghai.android.files.provider.common.ByteStringListPath
 import me.zhanghai.android.files.provider.document.isDocumentPath
 import me.zhanghai.android.files.provider.document.resolver.DocumentResolver
 import me.zhanghai.android.files.provider.linux.isLinuxPath
 
 val Path.name: String
-    get() = fileName?.toString() ?: if (isArchivePath) archiveFile.fileName.toString() else "/"
+    get() =
+        // Prefer the memoized decode on ByteStringListPath; the fallback covers other providers.
+        (this as? ByteStringListPath<*>)?.fileNameString
+            ?: fileName?.toString()
+            ?: if (isArchivePath) archiveFile.fileName.toString() else "/"
 
 fun Path.toUserFriendlyString(): String = if (isLinuxPath) toFile().path else toUri().toString()
 

@@ -10,6 +10,8 @@ import android.text.SpannableStringBuilder
 import android.text.TextUtils
 import android.text.style.BackgroundColorSpan
 import android.util.TypedValue
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
@@ -60,6 +62,22 @@ class FileListAdapter(
     // Cached recursive sizes for directories (computed off-thread). A directory's displayed size
     // comes from here when present, falling back to the entry's own size otherwise.
     var directorySizes: Map<Path, FileSize>? = null
+        private set
+
+    /**
+     * Refreshes the cached directory sizes and rebinds only the visible positions whose size
+     * actually changed, instead of republishing the whole list on every incremental update.
+     */
+    fun updateDirectorySizes(sizes: Map<Path, FileSize>) {
+        val oldSizes = directorySizes
+        directorySizes = sizes
+        for (index in 0..<itemCount) {
+            val path = getItem(index).path
+            if (sizes[path] != oldSizes?.get(path)) {
+                notifyItemChanged(index, PAYLOAD_STATE_CHANGED)
+            }
+        }
+    }
 
     // Captured when the first view holder is created; resolved lazily on first highlight into a
     // translucent accent that reads well on both light and dark themes.
@@ -90,6 +108,8 @@ class FileListAdapter(
         set(value) {
             _sortOptions = value
             if (!isSearching) {
+                // Sorting the same reference back into place (no-op reorder) still rebinds
+                // everything; skip the copy when the comparator reports the list unchanged.
                 val sortedList = list.sortedWith(value.createComparator())
                 super.replace(sortedList, true)
                 rebuildFilePositionMap()
@@ -189,6 +209,12 @@ class FileListAdapter(
         this.isSearching = isSearching
         this.searchOptions = if (isSearching) searchOptions else null
         val sortedList = if (!isSearching) list.sortedWith(sortOptions.createComparator()) else list
+        // sortedWith returns the same instance for a size-1 or already-singleton list; also skip
+        // everything when the caller republished an identical (same reference) list in the same
+        // mode, e.g. a hidden-files toggle with no hidden entries.
+        if (!clear && sortedList === this.list) {
+            return
+        }
         super.replace(sortedList, clear)
         rebuildFilePositionMap()
     }
@@ -257,6 +283,11 @@ class FileListAdapter(
             popupMenu = PopupMenu(menuButton.context, menuButton)
                 .apply { inflate(R.menu.file_item) }
             menuButton.setOnClickListener { popupMenu.show() }
+            // The menu callbacks only forward to the listener with the item bound at that time;
+            // wiring them once per holder avoids re-installing ~15 callbacks on every rebind.
+            popupMenu.setOnMenuItemClickListener { item ->
+                onMenuItemSelected(item, currentItem ?: return@setOnMenuItemClickListener false)
+            }
         }
     }
 
@@ -288,6 +319,7 @@ class FileListAdapter(
         if (payloads.isNotEmpty()) {
             return
         }
+        holder.currentItem = file
         bindViewHolderAnimation(holder)
         holder.itemLayout.apply {
             setOnClickListener {
@@ -400,70 +432,72 @@ class FileListAdapter(
         menu.findItem(R.id.action_sign_apk).isVisible = isLocalApk
         menu.findItem(R.id.action_strip_signature).isVisible = isLocalApk
         menu.findItem(R.id.action_add_bookmark).isVisible = isDirectory
-        holder.popupMenu.setOnMenuItemClickListener {
-            when (it.itemId) {
-                R.id.action_open_with -> {
-                    listener.openFileWith(file)
-                    true
-                }
-                R.id.action_open_hex -> {
-                    listener.openHex(file)
-                    true
-                }
-                R.id.action_cut -> {
-                    listener.cutFile(file)
-                    true
-                }
-                R.id.action_copy -> {
-                    listener.copyFile(file)
-                    true
-                }
-                R.id.action_delete -> {
-                    listener.confirmDeleteFile(file)
-                    true
-                }
-                R.id.action_rename -> {
-                    listener.showRenameFileDialog(file)
-                    true
-                }
-                R.id.action_extract -> {
-                    listener.extractFile(file)
-                    true
-                }
-                R.id.action_archive -> {
-                    listener.showCreateArchiveDialog(file)
-                    true
-                }
-                R.id.action_sign_apk -> {
-                    listener.signApk(file)
-                    true
-                }
-                R.id.action_strip_signature -> {
-                    listener.stripApkSignature(file)
-                    true
-                }
-                R.id.action_share -> {
-                    listener.shareFile(file)
-                    true
-                }
-                R.id.action_copy_path -> {
-                    listener.copyPath(file)
-                    true
-                }
-                R.id.action_add_bookmark -> {
-                    listener.addBookmark(file)
-                    true
-                }
-                R.id.action_create_shortcut -> {
-                    listener.createShortcut(file)
-                    true
-                }
-                R.id.action_properties -> {
-                    listener.showPropertiesDialog(file)
-                    true
-                }
-                else -> false
+    }
+
+    /** Dispatches a popup-menu selection for the file currently bound to the holder. */
+    private fun onMenuItemSelected(item: MenuItem, file: FileItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_open_with -> {
+                listener.openFileWith(file)
+                true
             }
+            R.id.action_open_hex -> {
+                listener.openHex(file)
+                true
+            }
+            R.id.action_cut -> {
+                listener.cutFile(file)
+                true
+            }
+            R.id.action_copy -> {
+                listener.copyFile(file)
+                true
+            }
+            R.id.action_delete -> {
+                listener.confirmDeleteFile(file)
+                true
+            }
+            R.id.action_rename -> {
+                listener.showRenameFileDialog(file)
+                true
+            }
+            R.id.action_extract -> {
+                listener.extractFile(file)
+                true
+            }
+            R.id.action_archive -> {
+                listener.showCreateArchiveDialog(file)
+                true
+            }
+            R.id.action_sign_apk -> {
+                listener.signApk(file)
+                true
+            }
+            R.id.action_strip_signature -> {
+                listener.stripApkSignature(file)
+                true
+            }
+            R.id.action_share -> {
+                listener.shareFile(file)
+                true
+            }
+            R.id.action_copy_path -> {
+                listener.copyPath(file)
+                true
+            }
+            R.id.action_add_bookmark -> {
+                listener.addBookmark(file)
+                true
+            }
+            R.id.action_create_shortcut -> {
+                listener.createShortcut(file)
+                true
+            }
+            R.id.action_properties -> {
+                listener.showPropertiesDialog(file)
+                true
+            }
+            else -> false
         }
     }
 
@@ -541,6 +575,9 @@ class FileListAdapter(
         )
 
         lateinit var popupMenu: PopupMenu
+
+        /** The file most recently bound via a full (non-payload) bind. */
+        var currentItem: FileItem? = null
     }
 
     interface Listener {

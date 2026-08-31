@@ -42,8 +42,15 @@ class FileListLiveData(private val path: Path) : CloseableLiveData<Stateful<List
                 path.newDirectoryStream().use { directoryStream ->
                     val fileList = mutableListOf<FileItem>()
                     for (path in directoryStream) {
+                        // A cancelled load (superseded by a newer one) stops iterating and
+                        // discards the partial list instead of finishing a stale walk.
+                        if (Thread.currentThread().isInterrupted) {
+                            return@submit
+                        }
                         try {
-                            fileList.add(path.loadFileItem())
+                            // Pass the decoded name through: path.name would join and decode the
+                            // whole path per entry; the directory stream already hands us names.
+                            fileList.add(path.loadFileItem(path.name))
                         } catch (e: DirectoryIteratorException) {
                             // TODO: Ignoring such a file can be misleading and we need to support
                             //  files without information.
@@ -57,7 +64,9 @@ class FileListLiveData(private val path: Path) : CloseableLiveData<Stateful<List
             } catch (e: Exception) {
                 Failure(valueCompat.value, e)
             }
-            postValue(value)
+            if (!Thread.currentThread().isInterrupted) {
+                postValue(value)
+            }
         }
     }
 

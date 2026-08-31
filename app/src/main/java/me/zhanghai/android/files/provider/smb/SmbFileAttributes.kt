@@ -15,6 +15,7 @@ import me.zhanghai.android.files.provider.common.AbstractBasicFileAttributes
 import me.zhanghai.android.files.provider.common.BasicFileType
 import me.zhanghai.android.files.provider.common.FileTimeParceler
 import me.zhanghai.android.files.provider.smb.client.FileInformation
+import me.zhanghai.android.files.util.hash
 import me.zhanghai.android.files.util.hasBits
 
 @Parcelize
@@ -28,6 +29,28 @@ internal class SmbFileAttributes(
     private val attributes: Long
 ) : AbstractBasicFileAttributes() {
     fun attributes(): Long = attributes
+
+    // Value equality keeps DiffUtil's areContentsTheSame meaningful across refreshes.
+    override fun equals(other: Any?): Boolean {
+        if (this === other) {
+            return true
+        }
+        if (javaClass != other?.javaClass) {
+            return false
+        }
+        other as SmbFileAttributes
+        return lastModifiedTime == other.lastModifiedTime &&
+            creationTime == other.creationTime &&
+            type == other.type &&
+            size == other.size &&
+            fileKey == other.fileKey &&
+            attributes == other.attributes
+    }
+
+    override fun hashCode(): Int =
+        hash(
+            lastModifiedTime, creationTime, type, size, fileKey, attributes
+        )
 
     companion object {
         fun from(fileInformation: FileInformation, path: SmbPath): SmbFileAttributes {

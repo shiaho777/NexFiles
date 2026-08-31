@@ -15,6 +15,16 @@ import kotlin.math.min
 
 private val COLLATION_SENTINEL = byteArrayOf(1, 1, 1)
 
+// Collator.getInstance() clones a full rule table on every call, and loadFileItem() runs it once
+// per listed file. Collator is not thread-safe, so reuse one instance per worker thread instead
+// of allocating a fresh one for every entry of a directory listing.
+private val fileNameCollators = object : ThreadLocal<Collator>() {
+    override fun initialValue(): Collator = Collator.getInstance()
+}
+
+val fileNameCollator: Collator
+    get() = fileNameCollators.get()!!
+
 // @see https://github.com/GNOME/glib/blob/mainline/glib/gunicollate.c
 //      g_utf8_collate_key_for_filename()
 fun Collator.getCollationKeyForFileName(source: String): CollationKey {
@@ -83,7 +93,8 @@ fun Collator.getCollationKeyForFileName(source: String): CollationKey {
         result.append(collationKey.toByteArray())
     }
     result.append(suffix.toByteString())
-    return ByteArrayCollationKey(source, result.toByteString().borrowBytes())
+    // One-shot build: move the bytes out without the extra full-array copy toByteString makes.
+    return ByteArrayCollationKey(source, result.toBorrowedByteString().borrowBytes())
 }
 
 private fun Char.isAsciiDigit(): Boolean = this in '0'..'9'
@@ -100,6 +111,22 @@ private class ByteArrayCollationKey(
     }
 
     override fun toByteArray(): ByteArray = bytes.copyOf()
+
+    // Value equality so that FileItem's generated data-class equals (used by DiffUtil's
+    // areContentsTheSame) compares collation keys by content instead of identity — a reloaded
+    // directory creates fresh key instances for otherwise identical items.
+    override fun equals(other: Any?): Boolean {
+        if (this === other) {
+            return true
+        }
+        if (javaClass != other?.javaClass) {
+            return false
+        }
+        other as ByteArrayCollationKey
+        return bytes.contentEquals(other.bytes)
+    }
+
+    override fun hashCode(): Int = bytes.contentHashCode()
 }
 
 private fun ByteArray.unsignedCompareTo(other: ByteArray): Int {

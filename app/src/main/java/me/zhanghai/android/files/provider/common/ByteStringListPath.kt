@@ -77,6 +77,26 @@ abstract class ByteStringListPath<T : ByteStringListPath<T>> : AbstractPath<T>, 
     val fileNameByteString: ByteString?
         get() = segments.lastOrNull()
 
+    /**
+     * Decoded file name without going through [AbstractPath.getFileName] + `toString()`, which
+     * would allocate a single-segment path (and re-hash its file system) on every call. Used by
+     * name-based sort keys and item binding; decoding is memoized per path instance.
+     */
+    val fileNameString: String?
+        get() {
+            val segment = segments.lastOrNull() ?: return null
+            // We are okay with the potential race condition here; worst case both threads decode.
+            var name = segmentToStringCache
+            if (name == null) {
+                name = segment.toString()
+                segmentToStringCache = name
+            }
+            return name
+        }
+
+    @Volatile
+    private var segmentToStringCache: String? = null
+
     override fun getParent(): T? =
         if (segments.isNotEmpty()) createPath(isAbsolute, segments.dropLast(1)) else null
 
@@ -169,7 +189,21 @@ abstract class ByteStringListPath<T : ByteStringListPath<T>> : AbstractPath<T>, 
         return createPath(isAbsolute, resolvedSegments)
     }
 
-    fun resolve(other: ByteString): T = resolve(createPath(other))
+    fun resolve(other: ByteString): T {
+        // Fast path for the hot directory-stream case: appending a single name shouldn't parse
+        // the name into a throwaway path just to concatenate segments again. A name containing
+        // no separator is exactly one segment. A root path ("/") has no segments, in which case
+        // the resolved path is just the name segment itself.
+        if (other.indexOf(separator) == -1) {
+            if (other.isEmpty()) {
+                @Suppress("UNCHECKED_CAST")
+                return this as T
+            }
+            val segments = this.segments
+            return createPath(isAbsolute, if (segments.isEmpty()) listOf(other) else segments + other)
+        }
+        return resolve(createPath(other))
+    }
 
     fun resolveSibling(other: ByteString): T = resolveSibling(createPath(other))
 

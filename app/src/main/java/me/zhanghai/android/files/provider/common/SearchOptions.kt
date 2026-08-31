@@ -42,6 +42,17 @@ data class SearchOptions(
     /** Files larger than this are skipped during content search, to bound the cost. */
     val contentMaxSize: Long = 2 * 1024 * 1024
 ) : Parcelable {
+    // Regex/glob patterns are compiled once per options instance instead of once per visited
+    // file; a traversal checks matches() against every entry, so the compiled form is hot.
+    // Null means the plain substring strategy. Wildcard globs compile into anchored regexes;
+    // globToRegex is total, so a compiled wildcard pattern is always valid.
+    private val matchRegex: Regex? by lazy {
+        when {
+            isRegex -> createRegex(query)
+            hasWildcards(query, isRegex) -> createRegex(globToRegex(query))
+            else -> null
+        }
+    }
     /**
      * Tests the file name only. Returns `true` when [query] is empty (the name filter is then a
      * no-op and selection is driven purely by the attribute filters), which lets the UI offer
@@ -51,10 +62,13 @@ data class SearchOptions(
         if (query.isEmpty()) {
             return true
         }
-        return when {
-            isRegex -> matchesRegex(name, query)
-            hasWildcards() -> name.matchesWildcard(query)
-            else -> name.contains(query, ignoreCase = true)
+        // The compiled matcher is shared across the whole traversal; a null regex means the
+        // plain substring strategy (no wildcards, no regex in the query).
+        val regex = matchRegex ?: return name.contains(query, ignoreCase = true)
+        return try {
+            regex.containsMatchIn(name)
+        } catch (e: Exception) {
+            false
         }
     }
 
@@ -66,11 +80,11 @@ data class SearchOptions(
      */
     fun matchesContentSubstring(text: String): Boolean {
         if (query.isEmpty()) return false
-        return when {
-            isRegex -> try {
-                Regex(query, RegexOption.IGNORE_CASE).containsMatchIn(text)
-            } catch (e: Exception) { false }
-            else -> text.contains(query, ignoreCase = true)
+        val regex = matchRegex ?: return text.contains(query, ignoreCase = true)
+        return try {
+            regex.containsMatchIn(text)
+        } catch (e: Exception) {
+            false
         }
     }
 
@@ -109,6 +123,13 @@ data class SearchOptions(
 
     private fun hasWildcards(): Boolean = hasWildcards(query, isRegex)
 
+    /** Compiles [pattern] case-insensitively; an invalid pattern becomes a never-matching regex. */
+    private fun createRegex(pattern: String): Regex = try {
+        Regex(pattern, RegexOption.IGNORE_CASE)
+    } catch (e: Exception) {
+        // An invalid pattern should never crash the search; treat it as no match.
+        Regex("(?!)")
+    }
     companion object {
         /**
          * Returns the ranges in [name] that should be highlighted as matches, given the same
@@ -133,13 +154,6 @@ data class SearchOptions(
 
         fun hasWildcards(query: String, isRegex: Boolean): Boolean =
             !isRegex && query.any { it == '*' || it == '?' }
-
-        private fun matchesRegex(name: String, query: String): Boolean = try {
-            Regex(query, RegexOption.IGNORE_CASE).containsMatchIn(name)
-        } catch (e: Exception) {
-            // An invalid pattern should never crash the search; treat it as no match.
-            false
-        }
 
         private fun rangesSubstring(name: String, query: String): List<IntRange> {
             val ranges = mutableListOf<IntRange>()
@@ -188,20 +202,10 @@ data class SearchOptions(
 }
 
 /**
- * Translates a glob (with `*` and `?`) into an anchored, case-insensitive regex and tests whether
- * the whole [name] matches. Anchoring means `*.jpg` matches file names ending in `.jpg` rather
- * than any name merely containing that suffix.
+ * Translates a glob (with `*` and `?`) into an anchored, case-insensitive regex source. Anchoring
+ * means `*.jpg` matches file names ending in `.jpg` rather than any name merely containing that
+ * suffix. Matching itself goes through [SearchOptions]'s lazily compiled pattern.
  */
-private fun String.matchesWildcard(glob: String): Boolean {
-    val pattern = try {
-        Regex(globToRegex(glob), RegexOption.IGNORE_CASE)
-    } catch (e: Exception) {
-        // Should not happen given globToRegex never throws, but stay safe.
-        return this.contains(glob, ignoreCase = true)
-    }
-    return pattern.matches(this)
-}
-
 private fun globToRegex(glob: String): String {
     val builder = StringBuilder(glob.length + 4)
     builder.append('^')

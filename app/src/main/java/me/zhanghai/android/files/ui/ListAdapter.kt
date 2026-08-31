@@ -9,10 +9,12 @@ import androidx.recyclerview.widget.AdapterListUpdateCallback
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 
-abstract class ListAdapter<T, VH : RecyclerView.ViewHolder>(
+abstract class ListAdapter<T : Any, VH : RecyclerView.ViewHolder>(
     callback: DiffUtil.ItemCallback<T>
 ) : RecyclerView.Adapter<VH>() {
-    private val listDiffer = ListDiffer(AdapterListUpdateCallback(this), callback)
+    // Diffing runs off the main thread (AsyncListDiffer): O(n·diff) work no longer janks the UI
+    // on large directories, and superseded generations are dropped instead of queueing up.
+    private val listDiffer = AsyncListDiffer(AdapterListUpdateCallback(this), callback)
 
     val list: List<T>
         get() = listDiffer.list
@@ -31,6 +33,11 @@ abstract class ListAdapter<T, VH : RecyclerView.ViewHolder>(
     }
 
     open fun replace(list: List<T>, clear: Boolean) {
+        // An identical instance can't produce any diff; skip the O(n log n) calculation entirely.
+        // Directory listings and search refreshes frequently republish the same list reference.
+        if (!clear && list === listDiffer.list) {
+            return
+        }
         if (clear) {
             listDiffer.list = emptyList()
         }

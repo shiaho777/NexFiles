@@ -40,7 +40,9 @@ class SearchFileListLiveData(
                 path.search(options, INTERVAL_MILLIS) { paths: List<Path> ->
                     for (path in paths) {
                         val fileItem = try {
-                            path.loadFileItem()
+                            // The traversal already decoded each matched path's name; pass it
+                            // through to skip the full-path decode inside mime detection.
+                            path.loadFileItem(path.name)
                         } catch (e: IOException) {
                             e.printStackTrace()
                             // TODO: Support file without information.
@@ -55,7 +57,11 @@ class SearchFileListLiveData(
                         }
                         fileList.add(fileItem)
                     }
-                    postValue(Loading(fileList.toList()))
+                    // A superseded search stops publishing; the traversal itself notices the
+                    // interrupt at its next file visit and throws out.
+                    if (!Thread.currentThread().isInterrupted) {
+                        postValue(Loading(fileList.toList()))
+                    }
                 }
                 postValue(Success(fileList))
             } catch (e: Exception) {

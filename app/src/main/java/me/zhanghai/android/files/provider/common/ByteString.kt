@@ -43,10 +43,16 @@ class ByteString internal constructor(
         if (startIndex !in 0..length - prefix.length) {
             return false
         }
-        for (index in prefix.indices) {
-            if (this[startIndex + index] != prefix[index]) {
+        // Raw array access instead of per-index operator get: this runs in the path-prefix
+        // checks of every traversal and in indexOf()'s inner loop.
+        val thisBytes = bytes
+        val prefixBytes = prefix.bytes
+        var index = 0
+        while (index < prefixBytes.size) {
+            if (thisBytes[startIndex + index] != prefixBytes[index]) {
                 return false
             }
+            ++index
         }
         return true
     }
@@ -54,8 +60,9 @@ class ByteString internal constructor(
     fun endsWith(suffix: ByteString): Boolean = startsWith(suffix, length - suffix.length)
 
     fun indexOf(byte: Byte, fromIndex: Int = 0): Int {
-        for (index in fromIndex.coerceAtLeast(0)..<length) {
-            if (this[index] == byte) {
+        val bytes = bytes
+        for (index in fromIndex.coerceAtLeast(0)..<bytes.size) {
+            if (bytes[index] == byte) {
                 return index
             }
         }
@@ -74,10 +81,27 @@ class ByteString internal constructor(
     fun contains(byte: Byte): Boolean = indexOf(byte) != -1
 
     fun indexOf(substring: ByteString, fromIndex: Int = 0): Int {
-        for (index in fromIndex.coerceAtLeast(0)..<length - substring.length) {
-            if (startsWith(substring, index)) {
-                return index
+        val thisBytes = bytes
+        val subBytes = substring.bytes
+        val limit = thisBytes.size - subBytes.size
+        if (limit < 0) {
+            return -1
+        }
+        // Two-way scan with the first byte as a cheap pre-filter; needle length is 1..2 bytes for
+        // the dominant cases (path separators, extension dots), where this collapses to memchr.
+        val firstByte = if (subBytes.isNotEmpty()) subBytes[0] else return fromIndex.coerceAtLeast(0)
+        var index = fromIndex.coerceAtLeast(0)
+        while (index <= limit) {
+            if (thisBytes[index] == firstByte) {
+                var offset = 1
+                while (offset < subBytes.size && thisBytes[index + offset] == subBytes[offset]) {
+                    ++offset
+                }
+                if (offset == subBytes.size) {
+                    return index
+                }
             }
+            ++index
         }
         return -1
     }
@@ -161,20 +185,18 @@ class ByteString internal constructor(
 
     override fun hashCode(): Int = bytes.contentHashCode()
 
-    override fun compareTo(other: ByteString): Int = bytes.compareTo(other.bytes)
-
-    private fun ByteArray.compareTo(other: ByteArray): Int {
-        val size = size
-        val otherSize = other.size
-        for (index in 0..<min(size, otherSize)) {
-            val byte = this[index]
-            val otherByte = other[index]
-            val result = byte - otherByte
-            if (result != 0) {
-                return result
+    override fun compareTo(other: ByteString): Int {
+        val thisBytes = bytes
+        val otherBytes = other.bytes
+        val minSize = min(thisBytes.size, otherBytes.size)
+        for (index in 0..<minSize) {
+            val thisByte = thisBytes[index].toInt() and 0xFF
+            val otherByte = otherBytes[index].toInt() and 0xFF
+            if (thisByte != otherByte) {
+                return thisByte - otherByte
             }
         }
-        return size - otherSize
+        return thisBytes.size - otherBytes.size
     }
 
     companion object {

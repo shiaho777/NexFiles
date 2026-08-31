@@ -12,7 +12,7 @@ import androidx.recyclerview.widget.RecyclerView
 import me.zhanghai.android.files.R
 import me.zhanghai.android.files.util.getAnimation
 
-abstract class AnimatedListAdapter<T, VH : RecyclerView.ViewHolder>(
+abstract class AnimatedListAdapter<T : Any, VH : RecyclerView.ViewHolder>(
     callback: DiffUtil.ItemCallback<T>
 ) : ListAdapter<T, VH>(callback) {
     private var isAnimating = false

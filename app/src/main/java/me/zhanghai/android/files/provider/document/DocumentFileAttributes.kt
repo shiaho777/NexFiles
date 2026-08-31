@@ -13,6 +13,7 @@ import kotlinx.parcelize.Parcelize
 import kotlinx.parcelize.WriteWith
 import me.zhanghai.android.files.provider.common.AbstractContentProviderFileAttributes
 import me.zhanghai.android.files.provider.common.FileTimeParceler
+import me.zhanghai.android.files.util.hash
 
 @Parcelize
 internal class DocumentFileAttributes(
@@ -23,6 +24,25 @@ internal class DocumentFileAttributes(
     private val flags: Int
 ) : AbstractContentProviderFileAttributes() {
     fun flags(): Int = flags
+
+    // Value equality keeps DiffUtil's areContentsTheSame meaningful across refreshes.
+    override fun equals(other: Any?): Boolean {
+        if (this === other) {
+            return true
+        }
+        if (javaClass != other?.javaClass) {
+            return false
+        }
+        other as DocumentFileAttributes
+        return lastModifiedTime == other.lastModifiedTime &&
+            mimeType == other.mimeType &&
+            size == other.size &&
+            fileKey == other.fileKey &&
+            flags == other.flags
+    }
+
+    override fun hashCode(): Int =
+        hash(lastModifiedTime, mimeType, size, fileKey, flags)
 
     companion object {
         fun from(

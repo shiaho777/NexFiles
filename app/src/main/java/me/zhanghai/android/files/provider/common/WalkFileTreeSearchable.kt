@@ -171,6 +171,9 @@ object WalkFileTreeSearchable {
                         }
                     }
                     visitor.visitFile(path, attributes)
+                    // Check between entries too: a cancelled search shouldn't keep stat'ing
+                    // the rest of this directory before diving into subdirectories.
+                    throwIfInterrupted()
                     if (attributes.isDirectory) {
                         directories.add(path)
                     }

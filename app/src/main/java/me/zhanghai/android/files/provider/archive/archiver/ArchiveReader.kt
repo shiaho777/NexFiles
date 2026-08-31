@@ -73,7 +73,10 @@ object ArchiveReader {
                 if (entries.containsKey(parentPath)) {
                     break
                 }
-                entries[parentPath] = createDirectoryEntry(parentPath.toString())
+                // The synthetic directory entry only needs a name for diagnostics; lazily
+                // converting the missing parent's path to a String skips a full segment join
+                // and UTF-8 decode for every intermediate directory of every deep entry.
+                entries[parentPath] = createDirectoryEntry(parentPath)
                 path = parentPath
             }
         }
@@ -87,6 +90,14 @@ object ArchiveReader {
             PosixFileMode.DIRECTORY_DEFAULT, null
         )
     }
+
+    private fun createDirectoryEntry(path: Path): ReadArchive.Entry =
+        ReadArchive.Entry(
+            // The path string keeps the entry unique for ArchiveFileKey; unlike the loop above we
+            // compute it once per actually-missing intermediate directory, not per entry.
+            path.toString(), false, null, null, null, PosixFileType.DIRECTORY, 0, null, null,
+            PosixFileMode.DIRECTORY_DEFAULT, null
+        )
 
     @Throws(IOException::class)
     private fun readEntries(file: Path, passwords: List<String>): List<ReadArchive.Entry> {
