@@ -1,68 +1,101 @@
 # NexFiles
 
-一个开源的 Material Design 文件管理器，适用于 Android 5.0+。
+**一个开源、深度理解 Linux 的 Android 文件管理器 —— 内置逆向分析工具箱。**
 
-[<img alt="下载应用，请到 Google Play" src="https://play.google.com/intl/en_us/badges/static/images/badges/zh-cn_badge_web_generic.png" width="240">](https://play.google.com/store/apps/details?id=me.zhanghai.android.files) [<img alt="下载应用，请到 F-Droid" src="https://fdroid.gitlab.io/artwork/badge/get-it-on-zh-cn.png" width="240">](https://f-droid.org/packages/me.zhanghai.android.files) [<img alt="下载应用，请到 GitHub" src="https://raw.githubusercontent.com/Kunzisoft/Github-badge/main/get-it-on-github.png" width="240">](https://github.com/shiaho777/NexFiles)
+[![CI](https://github.com/shiaho777/NexFiles/actions/workflows/android.yml/badge.svg)](https://github.com/shiaho777/NexFiles/actions/workflows/android.yml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Android%205.0%2B-green.svg)](README_zh-CN.md)
+[![English docs](https://img.shields.io/badge/docs-English-yellow.svg)](README.md)
 
-[在 Transifex 上帮助翻译](https://github.com/shiaho777/NexFiles)（[搜索 Android 和 GNOME 的翻译](https://translations.zhanghai.me/)、[微软语言资源](https://learn.microsoft.com/en-us/globalization/reference/microsoft-language-resources)、[MIME 类型翻译](https://gitlab.freedesktop.org/xdg/shared-mime-info/-/tree/master/po)）
+[English version](README.md)
 
-## 预览
+> NexFiles 是一个独立项目，基于 [Hai Zhang](https://github.com/zhanghai) 的
+> [Material Files](https://github.com/zhanghai/MaterialFiles) 分支开发。
+> 核心文件管理器（NIO2 后端、Material Design 界面）来自那个优秀的原项目；
+> 下文 [NexFiles 新增能力](#nexfiles-新增能力) 一节所描述的一切都是本仓库在其之上开发的功能。
 
-<p><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width="32%" /> <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" width="32%" /> <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" width="32%" />
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" width="32%" /> <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5.png" width="32%" /> <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6.png" width="32%" /></p>
+<p align="center">
+  <img src="docs/assets/architecture.svg" alt="NexFiles 架构：UI 层之下是 ViewModel/LiveData 状态层，之下是 Java NIO2 provider SPI，11 个可插拔文件系统 provider，以及分支新增的逆向工程栈" width="720">
+</p>
 
 ## 特性
 
-- 开源：轻量、简洁并且安全。
-- Material Design：遵循 Material Design 规范，并且注重细节。
-- 面包屑导航栏：点击导航栏所显示路径中的任一文件夹即可快速访问。
-- Root 支持：使用 root 权限查看和管理文件。
-- 压缩文件支持：查看、提取和创建常见的压缩文件。
-- NAS 支持：查看和管理 FTP、SFTP、SMB 和 WebDAV 服务器上的文件。
-- 主题：可定制的界面颜色，以及可选纯黑的夜间模式。
-- Linux 友好：类似 [Nautilus](https://wiki.gnome.org/action/show/Apps/Files)，支持符号链接、文件权限和 SELinux 上下文。
-- 健壮性：使用 Linux 系统调用实现，而不是另一个 [`ls` 解析器](https://news.ycombinator.com/item?id=7994720)。
-- 实现良好：使用正确的方式打造，包括 [Java NIO2 文件 API](https://docs.oracle.com/javase/8/docs/api/java/nio/file/package-summary.html) 和 [LiveData](https://developer.android.com/topic/libraries/architecture/livedata)。
+- **整洁的 Material Design** —— 遵循规范并注重细节：面包屑导航、平板双窗格、可定制配色与纯黑夜间模式。
+- **深度理解 Linux** —— 类似 [Nautilus](https://apps.gnome.org/Nautilus/)：符号链接、文件权限、SELinux 上下文都是一等公民。底层通过 JNI 走 Linux 系统调用，而不是又一个 [`ls` 解析器](https://news.ycombinator.com/item?id=7994720)；路径以原始字节存储，非 UTF-8 文件名也能完整往返。
+- **文件在哪里，管理就在哪里** —— 11 个文件系统 provider：本地（syscall）、root、压缩包（zip/tar/7z）、FTP、SFTP、SMB、WebDAV、SAF/文档、content URI，以及远程 fd 传递 provider。
+- **健壮的工程实现** —— 基于 Java NIO2 文件 API 与 ViewModel/LiveData，正确处理文件操作错误、文件冲突和前台/后台状态。
 
-## 为什么要有 NexFiles?
+## NexFiles 新增能力
 
-因为喜爱 Material Design，并且是整洁、精致的 Material Design。
+Material Files 是一个出色的白纸起点。NexFiles 把它扩展成一件"还要看进文件内部"的工具：
 
-市面上已经有了许多强大的文件管理器，但它们中的大多数并非 Material Design。而即使在算是 Material Design 的应用之中，它们（或多或少）有着各种设计瑕疵（布局、对齐、留白、图标、字体等等）存在于应用的各个角落，让人难受；然而却又不是特别大的问题，以至于可能没人愿意特意改善。所以还是需要自己编写。
+- **免 root 运行时 Hook** —— 把目标 app 加载进隔离的 `:sandbox` 进程，在其中用
+  [lsplant](https://github.com/LSPosed/LSPlant) + [ShadowHook](https://github.com/bytedance/android-inline-hook)
+  hook 它的方法。无需 root、无需 debuggable、不碰 SELinux——目标崩溃只崩沙箱。另保留 ptrace 注入作为 root 降级路径。见 [沙箱 hook 方案](#沙箱-hook-方案)。
+- **内置终端** —— 真 PTY（native `forkpty`）+ VT100 模拟器，proot 运行 Alpine/Debian rootfs，并有以 shell UID 运行的 Shizuku 路径。
+- **APK 工具链** —— 签名查看（v1/v2/v3/v3.1 方案 + X.509 证书详情与指纹）、APK 签名（v1/v2/v3）、签名剥离、分包安装（`.apks`/`.xapk`/`.apkm`）、已安装应用提取。
+- **深度查看与编辑** —— 支持文件内查找的文本编辑器、十六进制编辑器、AXML/ARSC 检视器、DEX 浏览/编辑（字符串池、基于 dexlib2 的 const-string 补丁）、图片与媒体查看器。
+- **进阶文件管理** —— 正则/通配符 + 类型/大小/时间过滤的递归搜索、压缩包内编辑（copy-on-write 覆盖层）、回收站、批量校验和（MD5/SHA-1/SHA-256）、批量重命名、双窗格布局、对外共享文件的 FTP 与 WebDAV 服务端。
+- **性能工程** —— 五轮有文档记录的优化，包括修复本地文件系统上 DiffUtil 相等性语义从未真正生效的问题，以及后台异步列表 differ。
 
-因为想要一个开源的文件管理器。
+<p align="center">
+  <img src="docs/assets/stats.svg" alt="统计卡片：76.0k 行 Kotlin（779 个文件）、11 个文件系统 provider、2,615 行 JNI C/C++、32 个 AIDL 接口、provider 24.7k 行、hook 2,556 行、viewer 6,004 行、terminal 1,867 行" width="720">
+</p>
 
-大多数流行并且可靠的文件管理器都是闭源的，并且我有时会使用它们来查看或修改需要 root 权限的文件，但我心里对于授予 root 权限给闭源应用还是有些不安。毕竟 root 权限意味着对设备的完全访问权限，而这台设备每天跟随着我并且存储着我的个人信息；这样的话，闭源应用实际上做了哪些事情就完全仅仅取决于它们的良心了。
+## 预览
 
-因为想要一个正确实现的文件管理器。
+<p>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width="32%" /> <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" width="32%" /> <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" width="32%" />
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" width="32%" /> <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5.png" width="32%" /> <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6.png" width="32%" />
+</p>
 
-- 这个应用实现了 [Java NIO2 文件 API](https://docs.oracle.com/javase/8/docs/api/java/nio/file/package-summary.html) 作为后端，而不是发明一个自定义的机制来获取文件信息和进行文件操作。后者经常变得与前端逻辑耦合起来，最终成长为一个包含各种东西的混合物（[示例](https://github.com/TeamAmaze/AmazeFileManager/blob/master/app/src/main/java/com/amaze/filemanager/filesystem/HybridFile.java)）。相反地，一个解耦的后端可以使得代码更加干净（更少问题），并且可以更轻松地加入新文件系统的支持。
+## 架构
 
-- 这个应用没有使用 `java.io.File` 或者解析 `ls` 的输出，而是构建了 Linux 系统调用的绑定来正确地访问文件系统。`java.io.File` 是一个陈旧并且缺少许多功能的 API，并且无法正确处理符号链接，因此许多人宁愿解析 `ls` 的输出。然而解析 `ls` 的输出不仅缓慢，而且[不可靠](https://news.ycombinator.com/item?id=7994720)，同时也正是 [Cabinet](https://github.com/aminb/cabinet/blob/master/app/src/main/java/com/afollestad/cabinet/file/root/LsParser.java) 在新版本 Android 上无法正确运行的原因。而通过使用 Linux 系统调用，这个应用可以做到快速流畅，并且能够处理例如 Linux 权限、符号链接以至于 SELinux 上下文等等高级特性。应用也可以正确地处理含有无效 UTF-8 编码的文件名，因为应用中的路径没有简单地使用 Java 的 `String` 存储，而大多数其他文件管理器却并非如此，因此无法正确地进行文件操作。
+前端刻意朴素：`ViewModel` + `LiveData` + `RecyclerView`，不用 Compose。有意思的决策都在后端——
+每个文件系统都是真正的 `java.nio.file.FileSystemProvider`，因此文件操作可以跨 provider 组合
+（从 SFTP 拷进压缩包、对 root 文件算校验和），共用同一条代码路径。
 
-- 这个应用的前端是基于现代的 `ViewModel` 和 `LiveData` 实现的，使得代码结构更加清晰并且支持转屏。应用也可以正确地处理文件操作中的错误、文件冲突和前台/后台状态。
+<p align="center">
+  <img src="docs/assets/perf-pipeline.svg" alt="列表刷新管线前后对比：正则重编译、主线程 DiffUtil、identity 相等性全量重绑，被懒编译、工作线程异步 differ、仅 payload 定向重绑取代" width="720">
+</p>
 
-总而言之，这个应用尽力遵守 Android 上的最佳实践并且做正确的事，同时保持源代码干净和可维护。
+### 沙箱 hook 方案
 
-因为事情可以被人做好。
+免 root 全局 hook（注入 Zygote）在 Android 10–14 上被 SELinux `neverallow` 彻底封死——这是 OS 级
+边界，不是工程能绕过的。NexFiles 走了 MT 管理器和 LSPosed 都没走通的路：不去注入别人的进程，
+而是把**目标 app 的代码加载进我们自己的沙箱进程**——在这里 lsplant 拥有完全的 `ArtMethod` 访问权，
+不需要任何特殊权限。
 
-[Nautilus](https://wiki.gnome.org/Apps/Files) 是一个设计美观并且用户友好的 Linux 桌面上的文件管理器，并且同时做到了 Linux 友好。[Phonograph](https://github.com/kabouzeid/Phonograph) 是一个开源的 Material Design 音乐播放其应用（我自己已经使用多年），而它也有着绝佳的 Material Design 设计和实现。
+<p align="center">
+  <img src="docs/assets/hook-paths.svg" alt="两条 hook 路径：默认的沙箱路径免 root 把目标 APK 加载进隔离进程；ptrace 路径以 root attach 真实进程；两者共享 lsplant 核心" width="720">
+</p>
 
-所以，是时候再编写一个 Android 文件管理器了。
+## 构建
 
-## 在定制 ROM 中集成
+```sh
+git clone https://github.com/shiaho777/NexFiles.git
+cd NexFiles
+./gradlew assembleDebug
+```
 
-如果您决定在您的定制 ROM 中集成这个应用，十分感谢！但是鉴于我曾收到过多起由不适当的集成导致的用户反馈，请允许我为了更好的用户体验提供一些关于正确集成这个应用的建议：
+- JDK 17+、Android SDK 36、NDK（JNI 部分：syscall 绑定、终端 PTY、hook 桥）。
+- 终端的 proot 二进制需手动提供——见 `jniLibs/README-proot.md`。
+- 签名：把 `signing.properties.example` 复制为 `signing.properties`（debug 构建可跳过）。
 
-- 请不要使用这个应用替换 AOSP 的 [DocumentsUI](https://android.googlesource.com/platform/packages/apps/DocumentsUI/) 应用。这个应用没有被设计成 DocumentsUI 的替代品并且缺少许多 DocumentsUI 中的功能——实际上，这个应用需要 DocumentsUI 来授予外置 SD 卡的访问权限。
+CI 在每次推送时构建 `assembleDebug lintVitalRelease`（[workflow](.github/workflows/android.yml)）。
 
-- 请确保这个应用可以被卸载或至少禁用。某些用户可能出于各种原因不想要这个应用，并且会在发现无法移除这个应用时十分恼火。
+## 路线图
 
-- 请避免和这个应用的 Play/F-Droid 版本冲突。应用商店无法更新使用了不同证书进行签名的应用，所以您可以预置一个由我（或 F-Droid）签名的 APK 以使用户能够在 Play 或 F-Droid 上更新这个应用；或者如果您需要使用其他的证书进行签名（并进行其他更改），请复刻本项目并重命名它的软件包名。
+已交付功能与精确的实施蓝图见 [ROADMAP.md](ROADMAP.md)。
 
-## 许可证
+## 上游致谢与许可证
 
-    Copyright (C) 2018 Hai Zhang
+NexFiles 采用与上游一致的 **GPLv3**。原文件管理器的设计与实现全部归功于
+[Hai Zhang](https://github.com/zhanghai) 的 [Material Files](https://github.com/zhanghai/MaterialFiles)——
+本项目建立在那份工作之上。
+
+    Copyright (C) 2018 Hai Zhang (Material Files)
+    Copyright (C) NexFiles contributors
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

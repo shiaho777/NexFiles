@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="300" viewBox="0 0 880 300" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+  <rect width="880" height="300" fill="#FFFFFF"/>
+  <text x="440" y="34" text-anchor="middle" font-size="16" font-weight="700" fill="#0F172A">Root-free hooking: sandbox instead of ptrace</text>
+  <text x="440" y="54" text-anchor="middle" font-size="11" fill="#475569">Both paths share the same lsplant core and hook DSL — they differ only in delivery</text>
+
+  <!-- Path A: sandbox -->
+  <rect x="40" y="80" width="380" height="150" rx="12" fill="#D1FAE5" stroke="#059669" stroke-width="1.5"/>
+  <text x="230" y="106" text-anchor="middle" font-size="14" font-weight="700" fill="#064E3B">A · Sandbox (default, no root)</text>
+  <text x="230" y="128" text-anchor="middle" font-size="11" fill="#065F46">main app → Binder → :sandbox process</text>
+  <text x="230" y="146" text-anchor="middle" font-size="11" fill="#065F46">target APK loaded via PathClassLoader</text>
+  <text x="230" y="164" text-anchor="middle" font-size="11" fill="#065F46">lsplant + ShadowHook init inside own process</text>
+  <text x="230" y="182" text-anchor="middle" font-size="11" fill="#065F46">hook rules → run Application.onCreate → live log</text>
+  <text x="230" y="212" text-anchor="middle" font-size="11" font-weight="700" fill="#047857">no root · no debuggable flag · isolated crash domain</text>
+
+  <!-- Path B: ptrace -->
+  <rect x="460" y="80" width="380" height="150" rx="12" fill="#FEF3C7" stroke="#D97706" stroke-width="1.5"/>
+  <text x="650" y="106" text-anchor="middle" font-size="14" font-weight="700" fill="#78350F">B · ptrace inject (fallback, root)</text>
+  <text x="650" y="128" text-anchor="middle" font-size="11" fill="#92400E">attach target pid → remote dlopen libnexhook.so</text>
+  <text x="650" y="146" text-anchor="middle" font-size="11" fill="#92400E">lsplant hooks the real process</text>
+  <text x="650" y="164" text-anchor="middle" font-size="11" fill="#92400E">multi-process targets · real UI</text>
+  <text x="650" y="182" text-anchor="middle" font-size="11" fill="#92400E">requires root · production targets need debuggable</text>
+  <text x="650" y="212" text-anchor="middle" font-size="11" font-weight="700" fill="#B45309">kept as architectural fallback, verify on device</text>
+
+  <!-- shared core band -->
+  <rect x="140" y="248" width="600" height="36" rx="10" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="440" y="271" text-anchor="middle" font-size="12" fill="#475569">Shared core: HookEngine DSL · LsplantBridge JNI · MethodHook rules · log dispatcher</text>
+</svg>

@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="470" viewBox="0 0 880 470" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+  <rect width="880" height="470" fill="#FFFFFF"/>
+  <text x="440" y="34" text-anchor="middle" font-size="16" font-weight="700" fill="#0F172A">NexFiles architecture: one NIO2 backend, every file system a provider</text>
+  <text x="440" y="54" text-anchor="middle" font-size="11" fill="#475569">UI talks to java.nio.file.FileSystem — file systems plug in below the same interface</text>
+
+  <!-- Layer 1: UI -->
+  <rect x="60" y="76" width="760" height="58" rx="10" fill="#DBEAFE" stroke="#2563EB" stroke-width="1"/>
+  <text x="440" y="100" text-anchor="middle" font-size="14" font-weight="700" fill="#1E3A8A">UI layer — Material Design</text>
+  <text x="440" y="120" text-anchor="middle" font-size="11" fill="#1E40AF">FileListFragment (dual-pane) · viewers: text/hex/AXML/ARSC/DEX · media player · terminal · hook console</text>
+
+  <!-- arrow -->
+  <path d="M440 138 V154" stroke="#94A3B8" stroke-width="2"/>
+  <polygon points="434,152 446,152 440,162" fill="#94A3B8"/>
+
+  <!-- Layer 2: state -->
+  <rect x="60" y="164" width="760" height="58" rx="10" fill="#EDE9FE" stroke="#7C3AED" stroke-width="1"/>
+  <text x="440" y="188" text-anchor="middle" font-size="14" font-weight="700" fill="#4C1D95">State — ViewModel + LiveData, background AsyncListDiffer</text>
+  <text x="440" y="208" text-anchor="middle" font-size="11" fill="#5B21B6">directory listing, search, sort, file jobs (copy/move/compress/install), recycle bin</text>
+
+  <!-- arrow -->
+  <path d="M440 226 V242" stroke="#94A3B8" stroke-width="2"/>
+  <polygon points="434,240 446,240 440,250" fill="#94A3B8"/>
+
+  <!-- Layer 3: NIO2 -->
+  <rect x="60" y="252" width="760" height="56" rx="10" fill="#D1FAE5" stroke="#059669" stroke-width="1"/>
+  <text x="440" y="275" text-anchor="middle" font-size="14" font-weight="700" fill="#064E3B">Java NIO2 FileSystemProvider SPI</text>
+  <text x="440" y="295" text-anchor="middle" font-size="11" fill="#065F46">paths are ByteString — arbitrary bytes, non-UTF-8 names survive round-trips</text>
+
+  <!-- arrow fan -->
+  <path d="M440 312 V326" stroke="#94A3B8" stroke-width="2"/>
+  <polygon points="434,324 446,324 440,334" fill="#94A3B8"/>
+
+  <!-- Layer 4: providers -->
+  <rect x="60" y="336" width="172" height="58" rx="10" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="146" y="360" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">linux (JNI)</text>
+  <text x="146" y="378" text-anchor="middle" font-size="10.5" fill="#475569">syscalls · root · SELinux</text>
+
+  <rect x="248" y="336" width="140" height="58" rx="10" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="318" y="360" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">archive</text>
+  <text x="318" y="378" text-anchor="middle" font-size="10.5" fill="#475569">zip/tar/7z · COW edit</text>
+
+  <rect x="404" y="336" width="140" height="58" rx="10" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="474" y="360" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">smb · ftp</text>
+  <text x="474" y="378" text-anchor="middle" font-size="10.5" fill="#475569">sftp · webdav</text>
+
+  <rect x="560" y="336" width="120" height="58" rx="10" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="620" y="360" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">document</text>
+  <text x="620" y="378" text-anchor="middle" font-size="10.5" fill="#475569">SAF · content</text>
+
+  <rect x="696" y="336" width="124" height="58" rx="10" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="758" y="360" text-anchor="middle" font-size="13" font-weight="700" fill="#0F172A">remote</text>
+  <text x="758" y="378" text-anchor="middle" font-size="10.5" fill="#475569">fd-passing IPC</text>
+
+  <!-- Bottom band: reverse-engineering stack -->
+  <rect x="60" y="412" width="760" height="44" rx="10" fill="#FFFBEB" stroke="#F59E0B" stroke-width="1"/>
+  <text x="440" y="430" text-anchor="middle" font-size="12.5" font-weight="700" fill="#92400E">Reverse-engineering stack (fork addition): lsplant + ShadowHook sandbox · APK signer v1/v2/v3 · proot terminal</text>
+  <text x="440" y="447" text-anchor="middle" font-size="10.5" fill="#A16207">loads a target app into an isolated :sandbox process — no root, no SELinux fights</text>
+</svg>

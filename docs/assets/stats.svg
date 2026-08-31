@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="176" viewBox="0 0 880 176" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
+  <rect width="880" height="176" fill="#FFFFFF"/>
+  <text x="440" y="28" text-anchor="middle" font-size="14" font-weight="700" fill="#0F172A">Codebase by the numbers</text>
+  <text x="440" y="45" text-anchor="middle" font-size="10" fill="#94A3B8">counts derivable from the tree: find app/src/main/java -name '*.kt' | wc -l (measured 2026-08)</text>
+
+  <!-- row 1 -->
+  <rect x="20" y="62" width="200" height="52" rx="10" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="120" y="84" text-anchor="middle" font-size="17" font-weight="700" fill="#1D4ED8">76.0k</text>
+  <text x="120" y="102" text-anchor="middle" font-size="10.5" fill="#64748B">lines of Kotlin (779 files)</text>
+
+  <rect x="236" y="62" width="200" height="52" rx="10" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="336" y="84" text-anchor="middle" font-size="17" font-weight="700" fill="#059669">11</text>
+  <text x="336" y="102" text-anchor="middle" font-size="10.5" fill="#64748B">file system providers</text>
+
+  <rect x="452" y="62" width="200" height="52" rx="10" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="552" y="84" text-anchor="middle" font-size="17" font-weight="700" fill="#7C3AED">2,615</text>
+  <text x="552" y="102" text-anchor="middle" font-size="10.5" fill="#64748B">lines of JNI C/C++ (5 files)</text>
+
+  <rect x="668" y="62" width="192" height="52" rx="10" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="764" y="84" text-anchor="middle" font-size="17" font-weight="700" fill="#D97706">32</text>
+  <text x="764" y="102" text-anchor="middle" font-size="10.5" fill="#64748B">AIDL interfaces</text>
+
+  <!-- row 2 -->
+  <rect x="20" y="126" width="200" height="40" rx="10" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="120" y="145" text-anchor="middle" font-size="15" font-weight="700" fill="#DC2626">24.7k</text>
+  <text x="188" y="145" text-anchor="middle" font-size="10" fill="#64748B">lines in provider/</text>
+
+  <rect x="236" y="126" width="200" height="40" rx="10" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="336" y="145" text-anchor="middle" font-size="15" font-weight="700" fill="#0F172A">2,556</text>
+  <text x="410" y="145" text-anchor="middle" font-size="10" fill="#64748B">lines in hook/</text>
+
+  <rect x="452" y="126" width="200" height="40" rx="10" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="552" y="145" text-anchor="middle" font-size="15" font-weight="700" fill="#0F172A">6,004</text>
+  <text x="620" y="145" text-anchor="middle" font-size="10" fill="#64748B">lines in viewer/</text>
+
+  <rect x="668" y="126" width="192" height="40" rx="10" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="764" y="145" text-anchor="middle" font-size="15" font-weight="700" fill="#0F172A">1,867</text>
+  <text x="828" y="145" text-anchor="middle" font-size="10" fill="#64748B">lines in terminal/</text>
+</svg>
