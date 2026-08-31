@@ -24,6 +24,8 @@ import java8.nio.file.attribute.FileTime
 import java8.nio.file.attribute.GroupPrincipal
 import java8.nio.file.attribute.UserPrincipal
 import java8.nio.file.spi.FileSystemProvider
+import me.zhanghai.android.files.provider.webdav.WebDavFileSystemProvider
+import me.zhanghai.android.files.provider.webdav.WebDavPath
 import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.IOException
@@ -81,8 +83,12 @@ fun Path.createSymbolicLink(target: ByteString, vararg attributes: FileAttribute
     createSymbolicLink(ByteStringPath(target), *attributes)
 
 @Throws(IOException::class)
-fun Path.delete() {
-    Files.delete(this)
+fun Path.delete(isDirectory: Boolean?) {
+    if (provider == WebDavFileSystemProvider && this is WebDavPath) {
+        WebDavFileSystemProvider.delete(this, isDirectory)
+    } else {
+        Files.delete(this)
+    }
 }
 
 @Throws(IOException::class)

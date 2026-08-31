@@ -221,7 +221,7 @@ class WebDavServer(
             return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "Not found")
         }
         return try {
-            path.delete()
+            path.delete(Files.isDirectory(path))
             newFixedLengthResponse(Response.Status.NO_CONTENT, "text/plain", "")
         } catch (e: Exception) {
             newFixedLengthResponse(
