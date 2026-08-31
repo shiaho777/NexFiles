@@ -24,6 +24,105 @@
 | 12 | 运行时 Hook（免 root 主线已落地） | 见下文「运行时 Hook」章节：进程内托管（免 root，MT/LSPosed 都没做到）为主，ptrace 注入为 root 降级 |
 | 13 | 双窗格 | sw600dp 横屏双 `FileListFragment`，共享 drawer/导航，激活窗格驱动菜单与返回 |
 | 14 | 多包安装 | PackageInstaller Session 安装 `.apks`/`.xapk`/`.apkm`，支持多选 split APK |
+| 15 | 列表/搜索性能优化 | 见下文「性能优化」章节：Collator 复用、正则懒编译、定向重绑、可中断遍历/遍历取消即停投递 |
+
+---
+
+## 性能优化（本轮）
+
+针对文件列表浏览与搜索的热点路径做了六项优化，全部编译验证通过（`assembleDebug`）：
+
+| # | 位置 | 改动 | 效果 |
+|---|------|------|------|
+| 1 | `CollatorFileNameExtensions.kt` + `FileItem.loadFileItem()` | `Collator.getInstance()` 每个文件调用一次 → `ThreadLocal` 每线程复用一个实例（Collator 非线程安全，不能单例） | 列目录时每个条目省一次完整规则表克隆 |
+| 2 | `SearchOptions` | 正则/通配符匹配每次 `matchesName()` 都重新编译 `Regex` → 实例内 `by lazy` 编译一次复用（`matchesName`/`matchesContentSubstring` 共享） | 递归搜索遍历上万条目时省上万次正则编译 |
+| 3 | `FileListAdapter` | 目录大小更新时 `notifyItemRangeChanged(0, itemCount)` 全列表重绑 → `updateDirectorySizes()` 只对 size 实际变化的条目发 `PAYLOAD_STATE_CHANGED` 定向重绑 | 增量大小结果到达时不再整屏闪重绑 |
+| 4 | `FileListAdapter.ViewHolder` | 弹出菜单 15 个回调每次 bind 重新安装 → holder 创建时装一次，绑定文件记在 `currentItem`，回调分发时取当前文件 | bind 路径更薄 |
+| 5 | `DirectorySizeCalculator` | 共享 `AsyncTask.THREAD_POOL_EXECUTOR` → 专用单线程池（守护线程，串行化大小遍历，不与列表加载争 CPU）；遍历回调检查中断位提前 `TERMINATE`，取消后不再发布结果 | 大目录遍历可中断、不影响列表加载吞吐 |
+| 6 | `FileListLiveData` / `SearchFileListLiveData` / `WalkFileTreeSearchable` | 被取消（换目录/换查询）的后台任务继续把整棵树走完并投递过期结果 → 迭代中检查中断位，取消即停止遍历并丢弃投递；搜索遍历在目录条目间也检查中断 | 快速换目录/连续输入搜索不再有空跑遍历和过期结果竞争 |
+
+另外 `ListAdapter.replace()` 增加了同引用快速路径：列表数据源重新发布同一 List 实例时直接跳过 O(n log n) 的 DiffUtil 计算。
+
+### 性能优化（第二轮）
+
+继续向数据层和每条目开销下钻，四项改动，`assembleDebug` 全量编译通过：
+
+| # | 位置 | 改动 | 效果 |
+|---|------|------|------|
+| 1 | `LinuxUserPrincipalLookupService` | `getpwuid`/`getgrgid` 直通 syscall → 256 项 LRU 缓存（`synchronized` 保护，列表加载在共享线程池上并发读取）| 列 N 个文件的目录从 2N 次 getpwuid_r/getgrgid_r + 2N 次 JNI StructPasswd/Group 分配降为个位数查找——大多数文件系统里 uid/gid 集合极小 |
+| 2 | `Instant.formatShort()` | 每次调用分配两个 `Time` 对象并做时区查询判断"是否今天/今年" → "今天"的 year/yearDay 每个本地日只算一次（`LocalDate.now` + epochDay 缓存），每次调用只保留一个 `Time` | 文件列表每一行 bind 都要格式化时间，滚动时每行省一次时区查表 |
+| 3 | `Context.getAnimation()` | `AnimationUtils.loadAnimation()` 每次 bind 重新 inflate XML + 解析属性 → 按 (context, id) 弱引用缓存解析结果 | 开启动画时每个新绑定条目省一次 XML inflate |
+| 4 | `FileListAdapter` / `FileListFragment` | ① `replaceListAndIsSearching` 在同引用列表且模式未变时直接返回（跳过 sort + diff + 位置表重建）；② `updateAdapterFileList` 的 `filterNot` 无隐藏文件时返回同一实例，配合 ① 形成零开销路径；③ `sortOptions` setter 同引用列表跳过重排 | 设置切换、观察者重复触发等场景从整表重排/重绑降为 no-op |
+
+第二轮刻意未动的部分（评估后收益不足或风险大于收益）：
+- `readdir` JNI 每条目分配 `StructDirent`/`ByteString`——改成复用 buffer 需要改 native ABI 并让 iterator 生命周期变得脆弱，超出"安全优化"范围。
+- `Path.name`/`fileName` 缓存——`ByteString.toString()` 已足够便宜，且 `LinuxPath.fileName` 只是一次列表尾部访问，无实质热点。
+- uid/gid 缓存只做 id→principal（name 附带在 principal 里），不做 name→id 反查缓存——反查只在属性编辑对话框用到，非热点。
+
+### 性能优化（第三轮：底层算法）
+
+本轮下钻到文件系统抽象层本身（`ByteString`/`ByteStringListPath`）和排序/归档构建算法，
+`assembleDebug` 全量编译通过：
+
+| # | 位置 | 算法改动 | 效果 |
+|---|------|---------|------|
+| 1 | `ByteString.indexOf(substring)` | 朴素 `startsWith` 逐位置调用（每次带区间检查）→ 首字节预过滤的两路扫描，子串为 1–2 字节（路径分隔符、扩展名点号——最常见情形）时退化为 memchr 式扫描 | 路径解析、`PathName` 扩展名提取、`isHidden` 前缀判断等全走这里 |
+| 2 | `ByteString.startsWith` / `indexOf(byte)` / `compareTo` | 经 `operator get` 的逐字节访问（每次带 bounds 检查的虚调用）→ 直接持字节数组引用的原生数组访存；`compareTo` 改为无符号字节序（修正了此前 `byte - otherByte` 对 ≥0x80 字节的有符号溢出错误——排序键比较路径一致性不变，因 `ByteArray.compareTo` 与 collation key 均按此语义） | 消除路径比较/搜索的内层虚调用开销，同时修正潜在的字节序 bug |
+| 3 | `ByteStringListPath.resolve(ByteString)` | 单段名称 resolve 先构造一个临时 Path（重新解析+建段+校验）再拼段 → 检测无分隔符的单段名称直接 `segments + other` 建路径，根路径（无段）特判 | 目录流每条目 `directory.resolve(d_name)` 从两次解析降为一次数组拷贝；这是列目录/搜索遍历的主路径 |
+| 4 | `ByteStringListPath.fileNameString` | `path.name` 每次调用 `getFileName()` 分配单段 Path（含 fileSystem 引用、绝对性检查、父类校验）再 `toString()` → 直接取尾段解码，按实例缓存（`@Volatile` 允许良性竞争） | 排序比较器（extension/name）、弹窗字母、条目绑定的高频 name 访问从 O(分配) 降为首次解码后 O(1) |
+| 5 | `FileSortOptions` | 第一个排序键 `compareBy { prefixes.any { it.name.startsWith(prefix) } }` 每次比较装箱 Boolean + 嵌套 lambda → 专用 `Comparator`，只看首字符 | 每次排序 O(n log n) 次比较的常量因子下降 |
+| 6 | `ArchiveReader.readEntries` 树构建 | 每个缺失的中间目录都 `parentPath.toString()`（完整段拼接 + UTF-8 解码）→ 保持行为（fileKey 唯一性）的同时仅在真正插入合成目录时转换 | 深路径归档（如 .zip 内嵌套目录）打开时的树构建免重复字符串化 |
+
+第三轮评估后不动的部分：
+- **搜索遍历「免二次 stat」**：`walkFileTreeForSearch` 已把首层 `readAttributes` 的结果传入
+  `visitor.visitFile(path, attributes)`，无重复 stat；子目录递归走的 `Files.walkFileTree`
+  内部同样自带 attributes。无优化空间（此前 todo 里的猜测不成立）。
+- **归档树 O(N·depth) 逐父链走**：无法在单遍内同时确定「缺失父目录」集合与树结构——
+  当前实现已是两遍内完成（一遍读条目、一遍补父链），复杂度由数据形态决定，非算法冗余。
+
+### 性能优化（第四轮：相等性语义——被掩盖的最大热点）
+
+本轮发现并修复了三轮优化一直被掩盖的一个根本问题：**DiffUtil 对本地文件系统从未真正生效**。
+
+`FileItem` 是 data class，其生成的 `equals` 会逐字段比较。但它的 `nameCollationKey`
+（`ByteArrayCollationKey` 无 equals → identity）和 `attributesNoFollowLinks`
+（`LinuxFileAttributes` 无 equals → identity）都退化为引用比较。目录刷新重建所有
+`FileItem` 时，即使每个文件都没变，attributes 也是全新实例 → `areContentsTheSame`
+对**所有条目**返回 false → 全量重绑。第一轮~第三轮优化的「定向重绑」「同引用快速路径」
+在这个前提下大部分被吃掉。修复（`assembleDebug` 编译通过）：
+
+| # | 位置 | 改动 | 效果 |
+|---|------|------|------|
+| 1 | `LinuxFileAttributes` | 手写 `equals`/`hashCode`（值相等，比较 mtime/type/size/fileKey/owner/group/mode/SELinux；跳过 lastAccessTime/creationTime 因其派生自 stat 的同一来源，不影响内容显示）| 本地目录刷新时未变化的条目真正走 payload/无操作路径，全量重绑消失 |
+| 2 | `ArchiveFileAttributes` / `DocumentFileAttributes` / `SmbFileAttributes` | 同上（各自字段集；FTP/SFTP/WebDAV 原本就是 data class 无需改）| 归档/SAAF/SMB 刷新同样受益 |
+| 3 | `ByteArrayCollationKey` | 补 `equals`/`hashCode`（字节内容相等）| `FileItem.equals` 不再因排序键 identity 而必然不等 |
+| 4 | `ByteStringBuilder.toBorrowedByteString()` | 一次性构建的字节序列免最后一次 `copyOfRange` 全量拷贝（构建器随即失效，容量按需截断一次）| 每个文件项的 collation key 构建少一次 O(n) 拷贝 |
+
+注意点：这些 equals 是纯收紧（对象在刷新间本就表示同一文件），唯一可观察的行为变化就是
+DiffUtil 结果变准——这正是目的。`FileItem` 的 parcelable 兼容性不受影响（Parcelize 只管
+字段，不管 equals）。
+
+### 性能优化（第五轮：机制级——异步 Diff 与零解码加载管线）
+
+前三轮把每次操作的常量因子压到最低后，剩余的两个**机制级**瓶颈暴露出来（`assembleDebug`
+编译通过）：
+
+| # | 位置 | 机制改动 | 效果 |
+|---|------|---------|------|
+| 1 | `AsyncListDiffer`（新）+ `ListAdapter` | DiffUtil 从主线程同步计算 → 后台专用线程异步计算（androidx AsyncListDiffer 模式）：提交即返回、代数令牌保证只有最新列表被 diff 并派发、过期代直接丢弃、空/同引用/首列表仍走同步快速路径 | 大目录上 O(n·diff) 的比较工作不再阻塞主线程；连续更新（搜索防抖、inotify 风暴）只算一次 diff 而不是排队全算——这是输入延迟和滚动流畅度的硬指标 |
+| 2 | `loadFileItem(fileName)` 重载 + `AndroidFileTypeDetector.getMimeType(path, fileName, attributes)` + `MimeType.guessFromFileName` | mime 检测从 `path.toString()`（全部段拼接 + UTF-8 解码整条路径，只为取最后一个扩展名）→ 直接用调用方已有的文件名 | 目录流每条目省一次 O(路径长) 的字符串构建与解码；这是加载路径上最大的纯 Kotlin 开销 |
+| 3 | `loadFileItem` 的 `isHidden` | `Files.isHidden`（接口分发 → provider cast → ByteString 前缀比较）→ 直接 `fileName.startsWith(".")`（已核实全部 provider 的实现：除 archive/content 恒 false 外都是点前缀约定，行为一致） | 每条目省一次虚分发与对象比较；语义零变化 |
+| 4 | `FileListLiveData` / `SearchFileListLiveData` | 调用点传入目录流/遍历层已持有的解码名，走 #2 的新路径 | 主加载路径与搜索路径同时受益 |
+
+设计说明：
+- `AsyncListDiffer` 保留 `ListAdapter.replace()` 的同引用跳过与 `AnimatedListAdapter` 的
+  动画重置语义；`submitList` 快速路径（同引用、清空、首列表）同步执行以维持「换目录立即
+  清屏」的既有行为，只有真正需要 diff 的场景才进后台。
+- 泛型签名从 `T` 收紧为 `T : Any`——列表永不含 null，消除了 nullable 元素处理分支。
+- 旧的同步 `ListDiffer` 保留（其他地方可能引用），但 `ListAdapter` 已切换。
+
+第五轮之后剩余的已知开销全部是本质性的：syscall 本身（lstat/open/close）、
+DiffUtil 的算法复杂度（已在后台）、以及 Coil 缩略图解码（有独立缓存）。
 
 ---
 

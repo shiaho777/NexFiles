@@ -17,9 +17,11 @@ data class FileSortOptions(
     val isDirectoriesFirst: Boolean
 ) : Parcelable {
     fun createComparator(): Comparator<FileItem> {
-        var comparator = compareBy<FileItem> {
-            NAME_UNIMPORTANT_PREFIXES.any { prefix -> it.name.startsWith(prefix) }
-        }.thenBy { it.nameCollationKey }
+        // The name-unimportant-prefix check runs as the first key on every comparison of every
+        // sort; a dedicated comparator avoids allocating a Boolean key and re-scanning prefixes
+        // through a nested lambda on each of the O(n log n) comparisons.
+        var comparator: Comparator<FileItem> = NAME_UNIMPORTANT_PREFIX_COMPARATOR
+            .thenBy { it.nameCollationKey }
         when (by) {
             // Nothing to do.
             By.NAME -> {}
@@ -46,7 +48,18 @@ data class FileSortOptions(
 
     companion object {
         // Same behavior as Nautilus.
-        private val NAME_UNIMPORTANT_PREFIXES = listOf(".", "#")
+        private const val NAME_UNIMPORTANT_FIRST_PREFIX = '.'
+        private const val NAME_UNIMPORTANT_SECOND_PREFIX = '#'
+
+        private val NAME_UNIMPORTANT_PREFIX_COMPARATOR =
+            Comparator<FileItem> { a, b ->
+                isNameUnimportant(a.name).compareTo(isNameUnimportant(b.name))
+            }
+
+        private fun isNameUnimportant(name: String): Boolean {
+            val first = name.firstOrNull() ?: return false
+            return first == NAME_UNIMPORTANT_FIRST_PREFIX || first == NAME_UNIMPORTANT_SECOND_PREFIX
+        }
     }
 
     enum class By {

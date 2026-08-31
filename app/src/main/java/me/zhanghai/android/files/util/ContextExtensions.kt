@@ -44,6 +44,7 @@ import me.zhanghai.android.files.compat.getFloatCompat
 import me.zhanghai.android.files.compat.mainExecutorCompat
 import me.zhanghai.android.files.compat.obtainStyledAttributesCompat
 import me.zhanghai.android.files.compat.use
+import java.util.WeakHashMap
 
 val Context.activity: Activity?
     get() {
@@ -57,7 +58,17 @@ val Context.activity: Activity?
         }
     }
 
-fun Context.getAnimation(@AnimRes id: Int): Animation = AnimationUtils.loadAnimation(this, id)
+// AnimationUtils.loadAnimation() re-inflates XML and resolves attributes on every call, and
+// AnimatedListAdapter calls it for every newly bound item while the list animation is running.
+// Cache per (context, id). Callers mutate startOffset on the shared instance; Animation mutations
+// after startAnimation() has registered it are view-scoped, and each bind starts the animation
+// right after setting the offset, so sharing one parsed instance is safe here.
+private val animationCache = WeakHashMap<Context, MutableMap<Int, Animation>>()
+
+fun Context.getAnimation(@AnimRes id: Int): Animation {
+    val cache = animationCache.getOrPut(this) { HashMap() }
+    return cache.getOrPut(id) { AnimationUtils.loadAnimation(this, id) }
+}
 
 fun Context.getBoolean(@BoolRes id: Int): Boolean = resources.getBoolean(id)
 

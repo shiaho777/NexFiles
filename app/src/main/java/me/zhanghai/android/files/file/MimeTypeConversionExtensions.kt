@@ -13,8 +13,12 @@ import me.zhanghai.android.files.util.asPathName
 
 fun MimeType.Companion.guessFromPath(path: String): MimeType {
     val fileName = path.asPathName().fileName ?: return DIRECTORY
-    return guessFromExtension(fileName.asFileName().singleExtension)
+    return guessFromFileName(fileName)
 }
+
+/** Extension-guessing from an already-extracted file name; no path parsing needed. */
+fun MimeType.Companion.guessFromFileName(fileName: String): MimeType =
+    guessFromExtension(fileName.asFileName().singleExtension)
 
 fun MimeType.Companion.guessFromExtension(extension: String): MimeType {
     val extension = extension.lowercase()

@@ -19,6 +19,7 @@ import me.zhanghai.android.files.provider.common.PosixFileModeBit
 import me.zhanghai.android.files.provider.common.PosixFileType
 import me.zhanghai.android.files.provider.common.PosixGroup
 import me.zhanghai.android.files.provider.common.PosixUser
+import me.zhanghai.android.files.util.hash
 
 @Parcelize
 internal class ArchiveFileAttributes(
@@ -38,6 +39,30 @@ internal class ArchiveFileAttributes(
     override fun isEncrypted(): Boolean = isEncrypted
 
     fun entryName(): String = entryName
+
+    // Value equality keeps DiffUtil's areContentsTheSame meaningful across archive refreshes.
+    override fun equals(other: Any?): Boolean {
+        if (this === other) {
+            return true
+        }
+        if (javaClass != other?.javaClass) {
+            return false
+        }
+        other as ArchiveFileAttributes
+        return lastModifiedTime == other.lastModifiedTime &&
+            creationTime == other.creationTime &&
+            type == other.type &&
+            size == other.size &&
+            fileKey == other.fileKey &&
+            owner == other.owner &&
+            group == other.group &&
+            mode == other.mode &&
+            isEncrypted == other.isEncrypted
+    }
+
+    override fun hashCode(): Int = hash(
+        lastModifiedTime, creationTime, type, size, fileKey, owner, group, mode, isEncrypted
+    )
 
     companion object {
         fun from(archiveFile: Path, entry: ReadArchive.Entry): ArchiveFileAttributes {

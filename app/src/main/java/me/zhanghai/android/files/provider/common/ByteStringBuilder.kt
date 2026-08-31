@@ -57,5 +57,17 @@ class ByteStringBuilder(capacity: Int = 16) {
 
     fun toByteString(): ByteString = bytes.toByteString(0, length)
 
+    /**
+     * Moves the built bytes into a [ByteString] without the final copy [toByteString] makes. The
+     * builder must not be appended to afterwards; oversized spare capacity is retained by the
+     * ByteString, which is the intended trade-off for one-shot builds like collation keys.
+     */
+    fun toBorrowedByteString(): ByteString {
+        val byteString = ByteString.takeBytes(bytes.copyOf(length))
+        bytes = ByteArray(0)
+        length = 0
+        return byteString
+    }
+
     override fun toString(): String = String(bytes, 0, length)
 }

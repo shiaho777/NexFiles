@@ -19,6 +19,7 @@ import me.zhanghai.android.files.provider.common.PosixFileType
 import me.zhanghai.android.files.provider.common.PosixGroup
 import me.zhanghai.android.files.provider.common.PosixUser
 import me.zhanghai.android.files.provider.linux.syscall.StructStat
+import me.zhanghai.android.files.util.hash
 
 @Parcelize
 internal class LinuxFileAttributes(
@@ -33,6 +34,32 @@ internal class LinuxFileAttributes(
     override val mode: Set<PosixFileModeBit>?,
     override val seLinuxContext: ByteString?
 ) : AbstractPosixFileAttributes() {
+    // Value equality keeps DiffUtil's areContentsTheSame meaningful: a refresh that reloads the
+    // same directory produces fresh attribute instances, and without this every item compares
+    // unequal and gets rebound.
+    override fun equals(other: Any?): Boolean {
+        if (this === other) {
+            return true
+        }
+        if (javaClass != other?.javaClass) {
+            return false
+        }
+        other as LinuxFileAttributes
+        return lastModifiedTime == other.lastModifiedTime &&
+            creationTime == other.creationTime &&
+            type == other.type &&
+            size == other.size &&
+            fileKey == other.fileKey &&
+            owner == other.owner &&
+            group == other.group &&
+            mode == other.mode &&
+            seLinuxContext == other.seLinuxContext
+    }
+
+    override fun hashCode(): Int = hash(
+        lastModifiedTime, creationTime, type, size, fileKey, owner, group, mode, seLinuxContext
+    )
+
     companion object {
         fun from(
             stat: StructStat,

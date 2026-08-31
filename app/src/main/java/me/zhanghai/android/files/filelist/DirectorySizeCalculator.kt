@@ -21,6 +21,7 @@ import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import java.io.IOException
 import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import java.util.concurrent.Future
 
 /**
@@ -37,7 +38,12 @@ import java.util.concurrent.Future
  */
 object DirectorySizeCalculator {
 
-    private val executor: ExecutorService = AsyncTask.THREAD_POOL_EXECUTOR as ExecutorService
+    // Size walks traverse entire subtrees and can run long; a dedicated single thread keeps them
+    // off AsyncTask's shared pool (which the file list itself uses) and serializes walks so a
+    // huge directory can't starve other pending sizes of CPU.
+    private val executor: ExecutorService = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "DirectorySizeCalculator").apply { isDaemon = true }
+    }
 
     private val sizesMutable = mutableMapOf<Path, FileSize>()
     private val liveData = MutableLiveData<Map<Path, FileSize>>(sizesMutable.toMap())
@@ -56,10 +62,14 @@ object DirectorySizeCalculator {
                 if (sizesMutable.containsKey(path) || pending.containsKey(path)) continue
                 val future = executor.submit<Unit> {
                     val size = computeSize(path)
-                    synchronized(sizesMutable) {
-                        sizesMutable[path] = size
-                        pending.remove(path)
-                        liveData.postValue(sizesMutable.toMap())
+                    // A cancelled walk must not publish; the thread's interrupt flag is the
+                    // cancellation signal from clear().
+                    if (!Thread.currentThread().isInterrupted) {
+                        synchronized(sizesMutable) {
+                            sizesMutable[path] = size
+                            pending.remove(path)
+                            liveData.postValue(sizesMutable.toMap())
+                        }
                     }
                 }
                 pending[path] = future
@@ -92,11 +102,20 @@ object DirectorySizeCalculator {
                 object : FileVisitor<Path> {
                     override fun preVisitDirectory(
                         dir: Path, attrs: BasicFileAttributes
-                    ): FileVisitResult = FileVisitResult.CONTINUE
+                    ): FileVisitResult = if (Thread.currentThread().isInterrupted) {
+                        // Bail out of the whole walk on cancellation instead of draining the
+                        // remaining subtree.
+                        FileVisitResult.TERMINATE
+                    } else {
+                        FileVisitResult.CONTINUE
+                    }
 
                     override fun visitFile(
                         file: Path, attrs: BasicFileAttributes
                     ): FileVisitResult {
+                        if (Thread.currentThread().isInterrupted) {
+                            return FileVisitResult.TERMINATE
+                        }
                         if (attrs.isRegularFile) {
                             total += attrs.size()
                         }

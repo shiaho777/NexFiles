@@ -429,10 +429,10 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
             (requireActivity() as FileListFragmentHost).invalidateOptionsMenu()
         }
         // Push computed directory sizes into the adapter so folders show their true recursive
-        // usage instead of the placeholder entry size.
+        // usage instead of the placeholder entry size. The adapter rebinds only the items whose
+        // size changed, so incremental updates don't churn the whole list.
         DirectorySizeCalculator.sizes.observe(viewLifecycleOwner) { sizes ->
-            adapter.directorySizes = sizes
-            adapter.notifyItemRangeChanged(0, adapter.itemCount)
+            adapter.updateDirectorySizes(sizes)
         }
         viewModel.breadcrumbLiveData.observe(viewLifecycleOwner) {
             binding.breadcrumbLayout.setData(it)
@@ -909,6 +909,8 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
     private fun updateAdapterFileList() {
         var files = viewModel.fileListStateful.value ?: return
         if (!Settings.FILE_LIST_SHOW_HIDDEN_FILES.valueCompat) {
+            // filterNot returns the same list instance when nothing is filtered; hand that same
+            // reference to the adapter so replace() can skip the DiffUtil pass entirely.
             files = files.filterNot { it.isHidden }
         }
         adapter.replaceListAndIsSearching(
