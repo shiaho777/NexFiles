@@ -1,5 +1,8 @@
 # NexFiles 功能路线图
 
+> NexFiles 是基于 [zhanghai/MaterialFiles](https://github.com/zhanghai/MaterialFiles) 分支开发的
+> 独立项目；本路线图记录的是本仓库在其之上新增的能力。上游致谢见 [README_zh-CN.md](README_zh-CN.md)。
+
 本文件记录已交付的功能增强，以及规划中但尚未实施的功能蓝图。蓝图条目均包含精确的
 架构分析，作为后续实施的可靠指导——它们被推迟是因为在缺乏真机/native 验证的环境下
 强行盲写会违背项目"确保功能有效性"的原则。
