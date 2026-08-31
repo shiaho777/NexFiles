@@ -28,6 +28,7 @@ import java8.nio.file.SimpleFileVisitor
 import java8.nio.file.StandardCopyOption
 import java8.nio.file.StandardOpenOption
 import java8.nio.file.attribute.BasicFileAttributes
+import java8.nio.file.attribute.FileTime
 import kotlinx.coroutines.runBlocking
 import me.zhanghai.android.files.R
 import me.zhanghai.android.files.apksign.ApkSigner
@@ -69,9 +70,11 @@ import me.zhanghai.android.files.provider.common.delete
 import me.zhanghai.android.files.provider.common.deleteIfExists
 import me.zhanghai.android.files.provider.common.exists
 import me.zhanghai.android.files.provider.common.getFileStore
+import me.zhanghai.android.files.provider.common.getLastModifiedTime
 import me.zhanghai.android.files.provider.common.getMode
 import me.zhanghai.android.files.provider.common.getPath
 import me.zhanghai.android.files.provider.common.isDirectory
+import me.zhanghai.android.files.provider.common.setLastModifiedTime
 import me.zhanghai.android.files.provider.common.moveTo
 import me.zhanghai.android.files.provider.common.newByteChannel
 import me.zhanghai.android.files.provider.common.newDirectoryStream
@@ -986,7 +989,7 @@ class DeleteFileJob(private val paths: List<Path>) : FileJob() {
         Files.walkFileTree(path, object : SimpleFileVisitor<Path>() {
             @Throws(IOException::class)
             override fun visitFile(file: Path, attributes: BasicFileAttributes): FileVisitResult {
-                delete(file, transferInfo, actionAllInfo)
+                delete(file, false, transferInfo, actionAllInfo)
                 throwIfInterrupted()
                 return FileVisitResult.CONTINUE
             }
@@ -1006,7 +1009,7 @@ class DeleteFileJob(private val paths: List<Path>) : FileJob() {
                 if (exception != null) {
                     throw exception
                 }
-                delete(directory, transferInfo, actionAllInfo)
+                delete(directory, true, transferInfo, actionAllInfo)
                 throwIfInterrupted()
                 return FileVisitResult.CONTINUE
             }
@@ -1015,12 +1018,17 @@ class DeleteFileJob(private val paths: List<Path>) : FileJob() {
 }
 
 @Throws(IOException::class)
-private fun FileJob.delete(path: Path, transferInfo: TransferInfo?, actionAllInfo: ActionAllInfo) {
+private fun FileJob.delete(
+    path: Path,
+    isDirectory: Boolean?,
+    transferInfo: TransferInfo?,
+    actionAllInfo: ActionAllInfo
+) {
     var retry: Boolean
     do {
         retry = false
         try {
-            path.delete()
+            path.delete(isDirectory)
             if (transferInfo != null) {
                 transferInfo.incrementTransferredFileCount()
                 postDeleteNotification(transferInfo, path)
@@ -1174,7 +1182,7 @@ class MoveFileJob(private val sources: List<Path>, private val targetDirectory: 
                 if (exception != null) {
                     throw exception
                 }
-                delete(directory, null, actionAllInfo)
+                delete(directory, true, null, actionAllInfo)
                 throwIfInterrupted()
                 return FileVisitResult.CONTINUE
             }
@@ -1318,6 +1326,19 @@ private fun FileJob.copyOrMove(
             postCopyMoveNotification(transferInfo, source, type)
             if (useCopy) {
                 source.copyTo(target, *options)
+                // Preserve the modification time even when full attribute copying is off — the
+                // displayed timestamp is the one users compare across devices. Errors are logged,
+                // not fatal, mirroring the attribute-copy semantics of the providers.
+                try {
+                    val lastModifiedTime = source.getLastModifiedTime(LinkOption.NOFOLLOW_LINKS)
+                    if (lastModifiedTime != FileTime.fromMillis(0)) {
+                        target.setLastModifiedTime(lastModifiedTime)
+                    }
+                } catch (e: IOException) {
+                    e.printStackTrace()
+                } catch (e: UnsupportedOperationException) {
+                    e.printStackTrace()
+                }
             } else {
                 source.moveTo(target, *options)
             }
@@ -1691,7 +1712,24 @@ class RenameFileJob(private val path: Path, private val newName: String) : FileJ
     @Throws(IOException::class)
     override fun run() {
         val newPath = path.resolveSibling(newName)
-        rename(path, newPath)
+        // A rename that only changes the letter case of the same name is a no-op for
+        // case-insensitive providers (their exists()/compare logic treats both names as equal),
+        // so route it through a temporary name to make it effective everywhere.
+        if (!newPath.exists(LinkOption.NOFOLLOW_LINKS) &&
+            newPath.toString().equals(path.toString(), ignoreCase = true) &&
+            newPath != path
+        ) {
+            val tempPath = path.resolveSibling(newName + "-nexfiles-renaming")
+            try {
+                rename(path, tempPath)
+                rename(tempPath, newPath)
+            } catch (e: IOException) {
+                runCatching { tempPath.delete(false) }
+                throw e
+            }
+        } else {
+            rename(path, newPath)
+        }
     }
 }
 
