@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+  ~ Copyright (c) NexFiles contributors
+  ~ All Rights Reserved.
+  -->
+
+<menu
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_toggle_view"
+        android:title="@string/kpm_viewer_view_sections"
+        app:showAsAction="ifRoom" />
+</menu>

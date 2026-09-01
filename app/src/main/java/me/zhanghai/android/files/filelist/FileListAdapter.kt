@@ -488,6 +488,7 @@ class FileListAdapter(
         menu.findItem(R.id.action_sign_apk).isVisible = isLocalApk
         menu.findItem(R.id.action_strip_signature).isVisible = isLocalApk
         menu.findItem(R.id.action_run_script).isVisible = ScriptRunner.isShellScript(file)
+        menu.findItem(R.id.action_view_kernel_module).isVisible = ScriptRunner.isKernelModule(file)
         menu.findItem(R.id.action_add_bookmark).isVisible = isDirectory
     }
 
@@ -504,6 +505,10 @@ class FileListAdapter(
             }
             R.id.action_run_script -> {
                 listener.runScript(file)
+                true
+            }
+            R.id.action_view_kernel_module -> {
+                listener.viewKernelModule(file)
                 true
             }
             R.id.action_cut -> {
@@ -662,6 +667,7 @@ class FileListAdapter(
         fun openFileWith(file: FileItem)
         fun openHex(file: FileItem)
         fun runScript(file: FileItem)
+        fun viewKernelModule(file: FileItem)
         fun cutFile(file: FileItem)
         fun copyFile(file: FileItem)
         fun confirmDeleteFile(file: FileItem)

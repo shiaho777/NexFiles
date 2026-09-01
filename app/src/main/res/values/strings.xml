@@ -919,6 +919,16 @@
     <string name="script_stage_failed">Could not stage the executable for running</string>
     <string name="script_run_failed">Could not run the script</string>
     <string name="script_exit_code_format">Process finished with exit code %1$d</string>
+    <string name="script_run_in_proot">Run in Linux environment (proot)</string>
+    <string name="script_proot_not_installed">No Linux environment installed yet. Open the terminal first and install Alpine or Debian.</string>
+    <string name="script_require_kernel_no_root">⚠ This script loads kernel modules (insmod) or needs real root. Without root it will fail — run it as root or don’t bother.</string>
+    <string name="script_require_kernel_root">⚠ This script performs kernel-level operations (insmod). Running it as root is required.</string>
+    <string name="script_require_id_check_proot">ℹ This script checks for root (id -u) but may not need real root. The Linux environment option fakes uid 0 and lets it run without root.</string>
+    <string name="script_require_id_check">ℹ This script checks for root (id -u). Without a Linux environment or root it may refuse to start.</string>
+    <string name="kpm_viewer_title">Kernel module</string>
+    <string name="kpm_viewer_view_sections">Sections</string>
+    <string name="kpm_viewer_view_symbols">Symbols</string>
+    <string name="kpm_viewer_view_info">Info &amp; strings</string>
     <plurals name="settings_root_strategy_message_format">
         <item quantity="one">You have %1$,d file operation running and changing root access mode now may result in unexpected error. Are you sure you want to change it now?</item>
         <item quantity="other">You have %1$,d file operations running and changing root access mode now may result in unexpected error. Are you sure you want to change it now?</item>

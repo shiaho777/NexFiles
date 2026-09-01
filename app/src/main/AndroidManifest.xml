@@ -321,6 +321,12 @@
         </activity>
 
         <activity
+            android:name="me.zhanghai.android.files.viewer.kpm.KpmViewerActivity"
+            android:exported="false"
+            android:label="@string/kpm_viewer_title"
+            android:theme="@style/Theme.NexFiles" />
+
+        <activity
             android:name="me.zhanghai.android.files.fileaction.ExtractApkActivity"
             android:exported="false"
             android:label="@string/extract_apk_title" />
