@@ -84,10 +84,6 @@ cd NexFiles
 
 CI 在每次推送时构建 `assembleDebug lintVitalRelease`（[workflow](.github/workflows/android.yml)）。
 
-## 路线图
-
-已交付功能与精确的实施蓝图见 [ROADMAP.md](ROADMAP.md)。
-
 ## 上游致谢与许可证
 
 NexFiles 采用与上游一致的 **GPLv3**。原文件管理器的设计与实现全部归功于
