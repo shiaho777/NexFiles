@@ -27,6 +27,9 @@ class KpmModel private constructor(
     val machine: Int,
     val sections: List<Section>,
     val symbols: List<Symbol>,
+    // Symbol references from .rela* sections, resolved to names — the definitive list of which
+    // kernel facilities the module calls into (hook targets, exports it patches).
+    val externalReferences: List<String>,
     val moduleInfo: List<Pair<String, String>>,
     val kpmInfo: KpmInfo?,
     val strings: List<String>
@@ -37,6 +40,8 @@ class KpmModel private constructor(
         val flags: Long,
         val size: Long,
         val offset: Long,
+        val link: Int,
+        val entrySize: Long,
         val isKpmInfo: Boolean,
         val isModInfo: Boolean,
         val isVersions: Boolean
@@ -53,8 +58,16 @@ class KpmModel private constructor(
         val isUndefined: Boolean get() = sectionIndex == SHN_UNDEF
     }
 
-    /** KernelPatch module info from `.kpm_info`, when present. */
-    data class KpmInfo(val magic: String, val versionName: String?, val author: String?)
+    /** KernelPatch module info from the `.kpm.info`/`.kpm_info` section, when present. */
+    data class KpmInfo(
+        val magic: String,
+        val name: String?,
+        val version: String?,
+        val license: String?,
+        val author: String?,
+        val description: String?,
+        val extra: List<String>
+    )
 
     val isKpmModule: Boolean
         get() = kpmInfo != null
@@ -91,10 +104,12 @@ class KpmModel private constructor(
         private const val SHN_UNDEF = 0
         private const val SHT_SYMTAB = 2L
         private const val SHT_STRTAB = 3L
+        private const val SHT_RELA = 4L
+        private const val RELA_SIZE_64 = 24
 
-        // KernelPatch stores its metadata in a dedicated .kpm_info section; the leading magic
-        // identifies it. See KernelPatch's kpm headers for the authoritative layout.
-        private const val KPM_MAGIC = "KPM"
+        // KernelPatch metadata sections are named `.kpm.info` in current toolchains and
+        // `.kpm_info` in some older docs; both are flagged.
+        private const val KPM_MARKER = "KPM"
 
         fun read(input: InputStream): KpmModel {
             val bytes = input.readBytes()
@@ -124,12 +139,13 @@ class KpmModel private constructor(
                 sectionNameTableIndex
             )
             val symbols = readSymbols(sections, reader)
+            val externalReferences = readExternalReferences(sections, reader, symbols)
             val moduleInfo = readModInfo(sections, bytes)
             val kpmInfo = readKpmInfo(sections, bytes)
             val strings = extractStrings(bytes)
             return KpmModel(
                 elfClass, isLittleEndian, elfType, machine,
-                sections, symbols, moduleInfo, kpmInfo, strings
+                sections, symbols, externalReferences, moduleInfo, kpmInfo, strings
             )
         }
 
@@ -155,7 +171,9 @@ class KpmModel private constructor(
                     type = reader.u32(offset + 4),
                     flags = reader.u64(offset + 8),
                     offset = reader.u64(offset + 24),
-                    size = reader.u64(offset + 32)
+                    size = reader.u64(offset + 32),
+                    link = reader.u32(offset + 40).toInt(),
+                    entrySize = reader.u64(offset + 56)
                 )
             }
             val nameTable = rawHeaders.getOrNull(nameTableIndex) ?: return emptyList()
@@ -167,22 +185,31 @@ class KpmModel private constructor(
                     flags = header.flags,
                     size = header.size,
                     offset = header.offset,
-                    isKpmInfo = name == ".kpm_info",
+                    link = header.link,
+                    entrySize = header.entrySize,
+                    isKpmInfo = name == ".kpm_info" || name == ".kpm.info",
                     isModInfo = name == ".modinfo",
                     isVersions = name == "__versions"
                 )
             }
         }
 
+        /**
+         * Reads the module's symbol table. The associated string table comes from the symtab's
+         * `sh_link`, not from a fixed name — relocatable objects produced by different toolchains
+         * arrange string tables differently.
+         */
         private fun readSymbols(sections: List<Section>, reader: BufferReader): List<Symbol> {
             val symtab = sections.firstOrNull { it.type == SHT_SYMTAB } ?: return emptyList()
-            val strtab = sections.filter { it.type == SHT_STRTAB }
-                .firstOrNull { it.name == ".strtab" }
+            val strtab = sections.getOrNull(symtab.link)
+                ?.takeIf { it.type == SHT_STRTAB }
+                ?: sections.filter { it.type == SHT_STRTAB }.firstOrNull { it.name == ".strtab" }
                 ?: return emptyList()
+            val entrySize = if (symtab.entrySize > 0) symtab.entrySize.toInt() else SYMBOL_SIZE_64
             val symbols = ArrayList<Symbol>()
             var offset = symtab.offset
             val end = symtab.offset + symtab.size
-            while (offset + SYMBOL_SIZE_64 <= end && offset + SYMBOL_SIZE_64 <= reader.size) {
+            while (offset + entrySize <= end && offset + entrySize <= reader.size) {
                 val offsetInt = offset.toInt()
                 val nameOffset = reader.u32(offsetInt)
                 val value = reader.u64(offsetInt + 8)
@@ -200,9 +227,49 @@ class KpmModel private constructor(
                         sectionIndex = sectionIndex
                     )
                 }
-                offset += SYMBOL_SIZE_64
+                offset += entrySize
             }
             return symbols
+        }
+
+        /**
+         * Walks the relocation tables (.rela.*, SHT_RELA) and resolves every reference through
+         * the symbol table. Undefined symbols reached this way are exactly the kernel facilities
+         * the module calls — hook helpers like `hook_syscalln`, or patched functions such as
+         * `access_process_vm` — which is the strongest single signal of what a module does.
+         */
+        private fun readExternalReferences(
+            sections: List<Section>,
+            reader: BufferReader,
+            symbols: List<Symbol>
+        ): List<String> {
+            val references = LinkedHashSet<String>()
+            for (section in sections) {
+                if (section.type != SHT_RELA) {
+                    continue
+                }
+                val symtab = sections.getOrNull(section.link)
+                    ?.takeIf { it.type == SHT_SYMTAB }
+                    ?: continue
+                val entrySize = if (section.entrySize > 0) section.entrySize.toInt() else RELA_SIZE_64
+                var offset = section.offset
+                val end = section.offset + section.size
+                while (offset + entrySize <= end && offset + entrySize <= reader.size) {
+                    val offsetInt = offset.toInt()
+                    val symbolIndex = reader.u32(offsetInt + 8).toInt()
+                    symbols.getOrNull(symbolIndex)?.let { symbol ->
+                        if (symbol.sectionIndex == SHN_UNDEF) {
+                            references += symbol.name
+                        }
+                    }
+                    offset += entrySize
+                }
+            }
+            // Fall back to the symtab's undefined entries when there are no relocation tables.
+            if (references.isEmpty()) {
+                symbols.filterTo(LinkedHashSet()) { it.isUndefined }.forEach { references.add(it.name) }
+            }
+            return references.toList()
         }
 
         /** Linux `.modinfo` is a NUL-separated list of `key=value` strings. */
@@ -222,31 +289,55 @@ class KpmModel private constructor(
                 }
         }
 
-        /** KernelPatch `.kpm_info` begins with a "KPM" magic followed by module metadata. */
+        /**
+         * KernelPatch module metadata. Real-world modules (verified against a KernelPatch 0.10.x
+         * build) carry it in a `.kpm.info` section holding NUL/newline-separated `key=value`
+         * lines (name/version/license/author/description) rather than the binary "KPM"-magic
+         * struct — parse it like modinfo and only fall back to a raw dump when the content
+         * doesn't fit that shape.
+         */
         private fun readKpmInfo(sections: List<Section>, bytes: ByteArray): KpmInfo? {
             val section = sections.firstOrNull { it.isKpmInfo } ?: return null
             val length = section.size
                 .coerceAtMost(MODINFO_MAX_BYTES.toLong())
                 .coerceAtMost((bytes.size - section.offset).coerceAtLeast(0).toLong())
-            if (length < KPM_MAGIC.length) {
+            if (length <= 0) {
                 return null
             }
             val content = String(
                 bytes, section.offset.toInt(), length.toInt(), StandardCharsets.UTF_8
             )
-            if (!content.startsWith(KPM_MAGIC)) {
-                return KpmInfo(magic = content.take(KPM_MAGIC.length), null, null)
-            }
-            // The remainder is NUL-separated metadata; keep the recognizable fields.
-            val fields = content.substring(KPM_MAGIC.length).split('\u0000')
+            val fields = content.split('\u0000', '\n')
                 .map { it.trim() }
                 .filter { it.isNotEmpty() }
-            fun fieldWith(prefix: String): String? =
-                fields.firstOrNull { it.startsWith(prefix) }?.removePrefix(prefix)
+            fun field(key: String): String? =
+                fields.firstOrNull { it.startsWith("$key=") }?.substring(key.length + 1)
+            if (fields.any { it.startsWith("name=") }) {
+                return KpmInfo(
+                    magic = KPM_MARKER,
+                    name = field("name"),
+                    version = field("version") ?: field("version_name"),
+                    license = field("license"),
+                    author = field("author"),
+                    description = field("description"),
+                    // kpm.info may list per-kernel-version offsets; keep them as-is.
+                    extra = fields.filterNot { line ->
+                        listOf("name=", "version=", "license=", "author=", "description=")
+                            .any { line.startsWith(it) }
+                    }
+                )
+            }
+            if (content.startsWith(KPM_MARKER)) {
+                return KpmInfo(
+                    magic = KPM_MARKER, name = null, version = null, license = null,
+                    author = null, description = null,
+                    extra = content.substring(KPM_MARKER.length).split('\u0000', '\n')
+                        .map { it.trim() }.filter { it.isNotEmpty() }
+                )
+            }
             return KpmInfo(
-                magic = KPM_MAGIC,
-                versionName = fieldWith("version=") ?: fields.firstOrNull(),
-                author = fieldWith("author=") ?: fields.getOrNull(1)
+                magic = content.take(KPM_MARKER.length), name = null, version = null,
+                license = null, author = null, description = null, extra = fields
             )
         }
 
@@ -280,7 +371,9 @@ class KpmModel private constructor(
             val type: Long,
             val flags: Long,
             val offset: Long,
-            val size: Long
+            val size: Long,
+            val link: Int,
+            val entrySize: Long
         )
     }
 }
