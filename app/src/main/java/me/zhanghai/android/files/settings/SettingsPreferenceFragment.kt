@@ -6,8 +6,12 @@
 package me.zhanghai.android.files.settings
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.preference.Preference
 import androidx.preference.SwitchPreferenceCompat
 import me.zhanghai.android.files.R
@@ -17,9 +21,24 @@ import me.zhanghai.android.files.theme.custom.ThemeColor
 import me.zhanghai.android.files.theme.night.NightMode
 import me.zhanghai.android.files.theme.night.NightModeHelper
 import me.zhanghai.android.files.ui.PreferenceFragmentCompat
+import org.json.JSONObject
 
 class SettingsPreferenceFragment : PreferenceFragmentCompat() {
     private lateinit var localePreference: LocalePreference
+
+    private val exportDocumentLauncher =
+        registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+            if (uri != null) {
+                writeExport(uri)
+            }
+        }
+
+    private val importDocumentLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri != null) {
+                confirmAndImport(uri)
+            }
+        }
 
     override fun onCreatePreferencesFix(savedInstanceState: Bundle?, rootKey: String?) {
         addPreferencesFromResource(R.xml.settings)
@@ -39,6 +58,14 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 startActivity(Intent(requireContext(), RecycleBinActivity::class.java))
                 return true
             }
+            "key_data_export" -> {
+                exportDocumentLauncher.launch(DataExportImport.EXPORT_FILE_NAME)
+                return true
+            }
+            "key_data_import" -> {
+                importDocumentLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
+                return true
+            }
             "key_webdav_server_running" -> {
                 val switch = preference as SwitchPreferenceCompat
                 // The framework flips isChecked before calling us; start/stop accordingly.
@@ -53,6 +80,52 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             }
         }
         return super.onPreferenceTreeClick(preference)
+    }
+
+    private fun writeExport(uri: Uri) {
+        try {
+            val json = DataExportImport.export()
+            requireContext().contentResolver.openOutputStream(uri)?.use { outputStream ->
+                outputStream.write(json.toString(2).toByteArray(Charsets.UTF_8))
+            } ?: throw IllegalStateException("Cannot open $uri for writing")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(
+                requireContext(),
+                getString(R.string.settings_data_import_failed, e.toString()),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    private fun confirmAndImport(uri: Uri) {
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.settings_data_import_title)
+            .setMessage(R.string.settings_data_import_confirm_message)
+            .setPositiveButton(android.R.string.ok) { _, _ -> readAndImport(uri) }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun readAndImport(uri: Uri) {
+        try {
+            val json = requireContext().contentResolver.openInputStream(uri)?.use { inputStream ->
+                inputStream.readBytes().toString(Charsets.UTF_8)
+            } ?: throw IllegalStateException("Cannot open $uri for reading")
+            val importedCount = DataExportImport.import(JSONObject(json))
+            Toast.makeText(
+                requireContext(),
+                getString(R.string.settings_data_import_succeeded_format, importedCount),
+                Toast.LENGTH_SHORT
+            ).show()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(
+                requireContext(),
+                getString(R.string.settings_data_import_failed, e.toString()),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
     }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
