@@ -909,6 +909,11 @@
     <string name="settings_data_import_confirm_message">Bookmarks, server accounts and preferences from the file will be added to the current ones. Server passwords are included. Continue?</string>
     <string name="settings_data_import_failed">Could not import data: %1$s</string>
     <string name="settings_data_import_succeeded_format">Imported %1$,d entries</string>
+    <string name="file_item_action_run_script">Run script</string>
+    <string name="confirm_run_script_title">Run script</string>
+    <string name="confirm_run_script_message">Run “%1$s” with the system shell (no root required, executed via Shizuku as shell)? The script runs with shell-level access — make sure you trust its contents.</string>
+    <string name="script_run_failed">Could not run the script</string>
+    <string name="script_exit_code_format">Process finished with exit code %1$d</string>
     <plurals name="settings_root_strategy_message_format">
         <item quantity="one">You have %1$,d file operation running and changing root access mode now may result in unexpected error. Are you sure you want to change it now?</item>
         <item quantity="other">You have %1$,d file operations running and changing root access mode now may result in unexpected error. Are you sure you want to change it now?</item>

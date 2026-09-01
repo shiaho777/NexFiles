@@ -43,6 +43,7 @@ import me.zhanghai.android.files.provider.common.SearchOptions
 import me.zhanghai.android.files.provider.linux.isLinuxPath
 import me.zhanghai.android.files.provider.common.isEncrypted
 import me.zhanghai.android.files.settings.Settings
+import me.zhanghai.android.files.terminal.ScriptRunner
 import me.zhanghai.android.files.ui.AnimatedListAdapter
 import me.zhanghai.android.files.ui.CheckableForegroundLinearLayout
 import me.zhanghai.android.files.ui.CheckableItemBackground
@@ -486,6 +487,7 @@ class FileListAdapter(
         val isLocalApk = file.mimeType.isApk && path.isLinuxPath
         menu.findItem(R.id.action_sign_apk).isVisible = isLocalApk
         menu.findItem(R.id.action_strip_signature).isVisible = isLocalApk
+        menu.findItem(R.id.action_run_script).isVisible = ScriptRunner.isShellScript(file)
         menu.findItem(R.id.action_add_bookmark).isVisible = isDirectory
     }
 
@@ -498,6 +500,10 @@ class FileListAdapter(
             }
             R.id.action_open_hex -> {
                 listener.openHex(file)
+                true
+            }
+            R.id.action_run_script -> {
+                listener.runScript(file)
                 true
             }
             R.id.action_cut -> {
@@ -655,6 +661,7 @@ class FileListAdapter(
         fun openFile(file: FileItem)
         fun openFileWith(file: FileItem)
         fun openHex(file: FileItem)
+        fun runScript(file: FileItem)
         fun cutFile(file: FileItem)
         fun copyFile(file: FileItem)
         fun confirmDeleteFile(file: FileItem)
