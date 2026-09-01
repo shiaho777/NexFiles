@@ -86,10 +86,6 @@ cd NexFiles
 
 CI builds `assembleDebug lintVitalRelease` on every push ([workflow](.github/workflows/android.yml)).
 
-## Roadmap
-
-Delivered features and precise implementation blueprints live in [ROADMAP.md](ROADMAP.md) (中文).
-
 ## Attribution & License
 
 NexFiles is **GPLv3**, same as upstream. All credit for the original file manager design and
