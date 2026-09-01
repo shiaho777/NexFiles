@@ -131,15 +131,24 @@ class KpmViewerFragment : Fragment() {
         val rows = buildList {
             add("Type" to model.elfTypeName)
             add("Architecture" to model.machineName)
-            add("Format" to if (model.isKpmModule) "KernelPatch module (KPM)" else "ELF kernel module / object")
+            add(
+                "Format" to
+                    if (model.isKpmModule) "KernelPatch module (KPM)" else "ELF kernel module / object"
+            )
             add("Sections" to model.sections.size.toString())
             add("Symbols" to model.symbols.size.toString())
-            add(
-                "Undefined symbols" to
-                    model.symbols.count { it.isUndefined }.toString()
-            )
-            val referenced = model.symbols.filter { it.isUndefined }.map { it.name }
-            add("Referenced kernel symbols" to referenced.take(24).joinToString(", "))
+            val references = model.externalReferences
+            add("External references" to references.size.toString())
+            if (references.isNotEmpty()) {
+                add("Referenced kernel facilities" to references.take(24).joinToString(", "))
+            }
+            model.kpmInfo?.let { kpm ->
+                kpm.name?.let { add("KPM name" to it) }
+                kpm.version?.let { add("KPM version" to it) }
+                kpm.author?.let { add("KPM author" to it) }
+                kpm.license?.let { add("KPM license" to it) }
+                kpm.description?.let { add("KPM description" to it) }
+            }
         }
         adapter.replace(rows)
     }
@@ -163,8 +172,12 @@ class KpmViewerFragment : Fragment() {
             model.moduleInfo.forEach { (key, value) -> add("$key = $value") }
             model.kpmInfo?.let { kpm ->
                 add("KPM magic: ${kpm.magic}")
-                kpm.versionName?.let { add("KPM version: $it") }
+                kpm.name?.let { add("KPM name: $it") }
+                kpm.version?.let { add("KPM version: $it") }
+                kpm.license?.let { add("KPM license: $it") }
                 kpm.author?.let { add("KPM author: $it") }
+                kpm.description?.let { add("KPM description: $it") }
+                kpm.extra.forEach { add("KPM extra: $it") }
             }
             addAll(model.strings)
         }
