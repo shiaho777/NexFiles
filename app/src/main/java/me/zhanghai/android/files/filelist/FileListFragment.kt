@@ -33,6 +33,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.pm.ShortcutInfoCompat
@@ -86,6 +87,7 @@ import me.zhanghai.android.files.provider.archive.isArchivePath
 import me.zhanghai.android.files.provider.common.newInputStream
 import me.zhanghai.android.files.provider.linux.isLinuxPath
 import me.zhanghai.android.files.settings.Settings
+import me.zhanghai.android.files.terminal.ScriptRunner
 import me.zhanghai.android.files.terminal.TerminalActivity
 import me.zhanghai.android.files.ui.AppBarLayoutExpandHackListener
 import me.zhanghai.android.files.ui.CoordinatorAppBarLayout
@@ -1505,6 +1507,12 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
             FileJobService.installSplitApks(file.path, requireContext())
             return
         }
+        // Tapping a shell script runs it (after confirmation) through the Shizuku shell-uid
+        // pipeline; the long-press menu keeps text-editor entry points available.
+        if (ScriptRunner.isShellScript(file)) {
+            confirmRunScript(file)
+            return
+        }
         if (file.isListable) {
             navigateTo(file.listablePath)
             return
@@ -1524,6 +1532,21 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
             .setDataAndType(file.path.fileProviderUri, file.mimeType.value)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         startActivitySafe(intent)
+    }
+
+    private fun confirmRunScript(file: FileItem) {
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.confirm_run_script_title)
+            .setMessage(getString(R.string.confirm_run_script_message, file.name))
+            .setPositiveButton(R.string.file_item_action_run_script) { _, _ ->
+                TerminalActivity.startScript(requireContext(), file.path)
+            }
+            .setNegativeButton(android.R.string.cancel) { _, _ -> openFileWith(file) }
+            .show()
+    }
+
+    override fun runScript(file: FileItem) {
+        confirmRunScript(file)
     }
 
     private fun openDex(file: FileItem) {

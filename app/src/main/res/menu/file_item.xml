@@ -16,6 +16,10 @@
         android:title="@string/file_item_action_open_hex" />
 
     <item
+        android:id="@+id/action_run_script"
+        android:title="@string/file_item_action_run_script" />
+
+    <item
         android:id="@+id/action_cut"
         android:title="@string/cut" />
 

@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import me.zhanghai.android.files.R
 import me.zhanghai.android.files.terminal.ui.TerminalBuffer
 import me.zhanghai.android.files.terminal.ui.TerminalView
+import me.zhanghai.android.files.util.extraPath
 import me.zhanghai.android.files.util.showToast
 
 /**
@@ -42,6 +43,10 @@ class TerminalActivity : AppCompatActivity() {
     private var buffer: TerminalBuffer? = null
     private var currentDistro: TerminalDistro? = null
 
+    // Non-null when launched to run a script (from the file list tap action) instead of an
+    // interactive shell; the path is the prepared, shell-uid-readable script location.
+    private var scriptArgv: List<String>? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.terminal_activity)
@@ -54,6 +59,18 @@ class TerminalActivity : AppCompatActivity() {
         terminalView = findViewById(R.id.terminalView)
         progress = findViewById(R.id.progress)
         statusText = findViewById(R.id.statusText)
+
+        // A script run skips distro selection: /system/bin/sh needs no rootfs, and the path has
+        // already been staged for shell-uid readability by the caller.
+        if (intent.getBooleanExtra(EXTRA_RUN_SCRIPT, false)) {
+            val scriptPath = intent.extraPath
+            if (scriptPath == null) {
+                showToast(R.string.script_run_failed)
+                finish()
+                return
+            }
+            scriptArgv = ScriptRunner.buildArgv(scriptPath)
+        }
 
         // Size the buffer to the view once it has a known size.
         terminalView.post { beginSessionChain() }
@@ -83,6 +100,12 @@ class TerminalActivity : AppCompatActivity() {
     }
 
     private fun chooseDistroAndProceed() {
+        // Script runs bypass distro selection entirely.
+        val argv = scriptArgv
+        if (argv != null) {
+            launchScriptSession(argv)
+            return
+        }
         // If we already have an Alpine or Debian installed, prefer it silently. Otherwise prompt.
         val installed = TerminalDistro.values().filter { RootfsManager.isInstalled(it) }
         when {
@@ -91,6 +114,48 @@ class TerminalActivity : AppCompatActivity() {
             else -> showDistroChooser { startWithDistro(it) }
         }
     }
+
+    /**
+     * Runs a script through the same PTY pipeline as an interactive shell, only with a fixed
+     * argv. The terminal view stays fully interactive, so scripts can prompt on stdin and the
+     * user can interrupt with Ctrl+C; the exit status is surfaced when the process ends.
+     */
+    private fun launchScriptSession(argv: List<String>) {
+        val rows = terminalView.visibleRows()
+        val cols = terminalView.visibleCols()
+        val config = TerminalConfig(argv = argv, envp = null, rows = rows, cols = cols)
+        val localBuffer = TerminalBuffer(rows, cols)
+        buffer = localBuffer
+        terminalView.buffer = localBuffer
+        terminalView.onInput = { bytes -> session?.write(bytes) }
+
+        progress.isVisible = true
+        lifecycleScope.launch {
+            try {
+                val s = TerminalService.createSession(config)
+                session = s
+                progress.isVisible = false
+                s.output.collect { chunk -> terminalView.feed(chunk, 0, chunk.size) }
+            } catch (e: TerminalServiceUnavailableException) {
+                progress.isVisible = false
+                showSetup(e.message ?: getString(R.string.terminal_unavailable), openShizuku = true)
+                return@launch
+            } catch (e: Exception) {
+                progress.isVisible = false
+                showToast(e.message ?: getString(R.string.script_run_failed))
+                return@launch
+            }
+            // The output flow has ended (pump closed = process gone); collect the wait status.
+            val status = session?.waitForExit()
+            progress.isVisible = false
+            statusText.isVisible = true
+            statusText.text = getString(R.string.script_exit_code_format, exitCode(status))
+        }
+    }
+
+    private fun exitCode(waitStatus: Int?): Int =
+        // Mirror the native side: a raw waitpid status, exit code in the high byte.
+        if (waitStatus == null) -1 else (waitStatus shr 8) and 0xff
 
     private fun showDistroChooser(onPick: (TerminalDistro) -> Unit) {
         val distros = TerminalDistro.values()
@@ -232,13 +297,33 @@ class TerminalActivity : AppCompatActivity() {
         super.onDestroy()
         session?.close()
         session = null
+        // Remove scripts staged for shell-uid readability; originals stay untouched.
+        ScriptRunner.cleanupStagedScripts(this)
     }
 
     companion object {
         private const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
 
+        private const val EXTRA_RUN_SCRIPT =
+            "me.zhanghai.android.files.terminal.extra.RUN_SCRIPT"
+
         fun start(context: Context) {
             context.startActivity(Intent(context, TerminalActivity::class.java))
+        }
+
+        /** Opens the terminal to run [scriptPath] (already validated as a shell script). */
+        fun startScript(context: Context, scriptPath: java8.nio.file.Path) {
+            val prepared = ScriptRunner.prepareRunnableScript(context, scriptPath)
+            if (prepared == null) {
+                context.showToast(R.string.script_run_failed)
+                return
+            }
+            context.startActivity(
+                Intent(context, TerminalActivity::class.java).apply {
+                    putExtra(EXTRA_RUN_SCRIPT, true)
+                    extraPath = prepared
+                }
+            )
         }
     }
 }
