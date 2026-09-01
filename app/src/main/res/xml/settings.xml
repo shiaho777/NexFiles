@@ -47,6 +47,12 @@
             android:defaultValue="@bool/pref_default_value_file_list_animation" />
 
         <SwitchPreferenceCompat
+            android:key="@string/pref_key_file_list_compact_layout"
+            android:title="@string/settings_file_list_compact_layout_title"
+            android:summary="@string/settings_file_list_compact_layout_summary"
+            android:defaultValue="@bool/pref_default_value_file_list_compact_layout" />
+
+        <SwitchPreferenceCompat
             android:key="@string/pref_key_file_list_dual_pane"
             android:title="@string/settings_file_list_dual_pane_title"
             android:summary="@string/settings_file_list_dual_pane_summary"

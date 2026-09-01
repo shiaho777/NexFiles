@@ -40,6 +40,9 @@ class FileListLiveData(private val path: Path) : CloseableLiveData<Stateful<List
         future = (AsyncTask.THREAD_POOL_EXECUTOR as ExecutorService).submit<Unit> {
             val value = try {
                 path.newDirectoryStream().use { directoryStream ->
+                    // Re-read the per-directory .hidden file on every load so edits to it show up
+                    // on refresh; the names set is cached only for the duration of this walk.
+                    val hiddenNames = HiddenFiles.namesFor(path)
                     val fileList = mutableListOf<FileItem>()
                     for (path in directoryStream) {
                         // A cancelled load (superseded by a newer one) stops iterating and
@@ -47,10 +50,14 @@ class FileListLiveData(private val path: Path) : CloseableLiveData<Stateful<List
                         if (Thread.currentThread().isInterrupted) {
                             return@submit
                         }
+                        val fileName: String = path.name
+                        if (fileName in hiddenNames) {
+                            continue
+                        }
                         try {
                             // Pass the decoded name through: path.name would join and decode the
                             // whole path per entry; the directory stream already hands us names.
-                            fileList.add(path.loadFileItem(path.name))
+                            fileList.add(path.loadFileItem(fileName))
                         } catch (e: DirectoryIteratorException) {
                             // TODO: Ignoring such a file can be misleading and we need to support
                             //  files without information.

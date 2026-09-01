@@ -8,6 +8,7 @@ package me.zhanghai.android.files.filejob
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.IBinder
 import androidx.annotation.MainThread
 import java8.nio.file.Path
@@ -196,6 +197,15 @@ class FileJobService : Service() {
 
         fun save(source: Path, target: Path, context: Context) {
             startJob(SaveFileJob(source, target), context)
+        }
+
+        /**
+         * Saves multiple shared content URIs into [targetDirectory], each named after its display
+         * name (falling back to the URI's last segment). Conflicts keep the source name plus a
+         * duplicate counter, mirroring copy behavior.
+         */
+        fun saveUris(sources: List<Pair<Uri, String?>>, targetDirectory: Path, context: Context) {
+            startJob(SaveUrisFileJob(sources, targetDirectory), context)
         }
 
         fun setGroup(path: Path, group: PosixGroup, recursive: Boolean, context: Context) {

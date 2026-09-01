@@ -124,6 +124,10 @@ class FileListAdapter(
 
     private val selectedFiles = fileItemSetOf()
 
+    // The item a tap-range selection extends from: set on every individual (de)select, cleared
+    // when the selection empties so a stale anchor can't bridge into a new selection session.
+    private var selectionAnchor: FileItem? = null
+
     private val filePositionMap = mutableMapOf<Path, Int>()
 
     private lateinit var _nameEllipsize: TextUtils.TruncateAt
@@ -154,6 +158,9 @@ class FileListAdapter(
             val position = filePositionMap[file.path]
             position?.let { notifyItemChanged(it, PAYLOAD_STATE_CHANGED) }
         }
+        if (selectedFiles.isEmpty()) {
+            selectionAnchor = null
+        }
     }
 
     private fun selectFile(file: FileItem) {
@@ -165,7 +172,40 @@ class FileListAdapter(
         if (!selected && pickOptions != null && !pickOptions.allowMultiple) {
             listener.clearSelectedFiles()
         }
+        if (!selected) {
+            selectionAnchor?.let { anchor ->
+                val range = selectRange(anchor, file)
+                if (range.isNotEmpty()) {
+                    listener.selectFiles(range, true)
+                    return
+                }
+            }
+        }
+        selectionAnchor = file
         listener.selectFile(file, !selected)
+    }
+
+    /**
+     * Collects the selectable items between the previous selection anchor and the newly touched
+     * item, in list order — the desktop-style shift-click range selection. Returns an empty set
+     * when either endpoint is no longer in the list (list changed between taps).
+     */
+    private fun selectRange(anchor: FileItem, end: FileItem): FileItemSet {
+        val anchorPosition = filePositionMap[anchor.path]
+        val endPosition = filePositionMap[end.path]
+        if (anchorPosition == null || endPosition == null) {
+            return fileItemSetOf()
+        }
+        val files = fileItemSetOf()
+        val start = minOf(anchorPosition, endPosition)
+        val stop = maxOf(anchorPosition, endPosition)
+        for (index in start..stop) {
+            val file = getItem(index)
+            if (isFileSelectable(file)) {
+                files.add(file)
+            }
+        }
+        return files
     }
 
     fun selectAllFiles() {
@@ -192,6 +232,7 @@ class FileListAdapter(
     override fun clear() {
         super.clear()
 
+        selectionAnchor = null
         rebuildFilePositionMap()
     }
 
@@ -321,6 +362,14 @@ class FileListAdapter(
         }
         holder.currentItem = file
         bindViewHolderAnimation(holder)
+        // Compact mode collapses the row to a single-line height; the description is hidden so the
+        // collapsed row shows the name only. Normal mode keeps the existing two-line height.
+        holder.itemLayout.layoutParams = holder.itemLayout.layoutParams.apply {
+            height = holder.itemLayout.resources.getDimensionPixelSize(
+                if (isCompactLayout) R.dimen.single_line_list_item_height
+                else R.dimen.two_line_list_item_height
+            )
+        }
         holder.itemLayout.apply {
             setOnClickListener {
                 if (selectedFiles.isEmpty()) {
@@ -403,10 +452,10 @@ class FileListAdapter(
             }
         }
         holder.nameText.text = highlightFileName(file.name)
-        holder.descriptionText?.text = if (isDirectory) {
+        val description = if (isDirectory) {
             null
         } else {
-            val context = holder.descriptionText!!.context
+            val context = holder.nameText.context
             val lastModificationTime = attributes.lastModifiedTime().toInstant()
                 .formatShort(context)
             // Directories show their cached recursive size once computed; until then the entry's
@@ -419,6 +468,12 @@ class FileListAdapter(
             }
             val descriptionSeparator = context.getString(R.string.file_item_description_separator)
             listOf(lastModificationTime, size).joinToString(descriptionSeparator)
+        }
+        holder.descriptionText?.apply {
+            // In compact layout the row is single-line; hide the description entirely so the name
+            // is vertically centered.
+            isVisible = !isCompactLayout
+            text = description
         }
         val isArchivePath = path.isArchivePath
         menu.findItem(R.id.action_copy)
@@ -514,6 +569,19 @@ class FileListAdapter(
 
     override val isAnimationEnabled: Boolean
         get() = Settings.FILE_LIST_ANIMATION.valueCompat
+
+    /**
+     * Tighter rows: single-line height and no description. Applied at bind time so toggling the
+     * setting only needs to rebind visible items, not rebuild the layout hierarchy.
+     */
+    var isCompactLayout: Boolean = false
+        set(value) {
+            if (field == value) {
+                return
+            }
+            field = value
+            notifyItemRangeChanged(0, itemCount)
+        }
 
     companion object {
         private val PAYLOAD_STATE_CHANGED = Any()
