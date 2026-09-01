@@ -99,6 +99,16 @@
             android:title="@string/settings_view_recycle_bin_title"
             android:summary="@string/settings_view_recycle_bin_summary" />
 
+        <Preference
+            android:key="key_data_export"
+            android:title="@string/settings_data_export_title"
+            android:summary="@string/settings_data_export_summary" />
+
+        <Preference
+            android:key="key_data_import"
+            android:title="@string/settings_data_import_title"
+            android:summary="@string/settings_data_import_summary" />
+
         <PreferenceCategory android:title="@string/webdav_server_title">
             <SwitchPreferenceCompat
                 android:key="key_webdav_server_running"

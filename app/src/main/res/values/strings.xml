@@ -900,6 +900,13 @@
     <string name="settings_root_strategy_title">Root access mode</string>
     <string name="settings_recycle_bin_enabled_title">Recycle bin</string>
     <string name="settings_recycle_bin_enabled_summary">Move local files here on delete instead of removing them permanently. Files on remote/archive locations are always deleted permanently.</string>
+    <string name="settings_data_export_title">Export data</string>
+    <string name="settings_data_export_summary">Save bookmarks, server accounts and preferences to a JSON file. The file contains passwords in plain text — keep it safe.</string>
+    <string name="settings_data_import_title">Import data</string>
+    <string name="settings_data_import_summary">Restore bookmarks, server accounts and preferences from a JSON export.</string>
+    <string name="settings_data_import_confirm_message">Bookmarks, server accounts and preferences from the file will be added to the current ones. Server passwords are included. Continue?</string>
+    <string name="settings_data_import_failed">Could not import data: %1$s</string>
+    <string name="settings_data_import_succeeded_format">Imported %1$,d entries</string>
     <plurals name="settings_root_strategy_message_format">
         <item quantity="one">You have %1$,d file operation running and changing root access mode now may result in unexpected error. Are you sure you want to change it now?</item>
         <item quantity="other">You have %1$,d file operations running and changing root access mode now may result in unexpected error. Are you sure you want to change it now?</item>
