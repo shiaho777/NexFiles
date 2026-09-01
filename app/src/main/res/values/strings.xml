@@ -874,6 +874,8 @@
     </string-array>
     <string name="settings_black_night_mode">Black night mode</string>
     <string name="settings_file_list_animation_title">File list animation</string>
+    <string name="settings_file_list_compact_layout_title">Compact layout</string>
+    <string name="settings_file_list_compact_layout_summary">Show more files per screen with a tighter list</string>
     <string name="settings_file_list_dual_pane_title">Dual pane on large screens</string>
     <string name="settings_file_list_dual_pane_summary">Show two file panes side by side in landscape on tablets</string>
     <string name="file_list_action_swap_panes">Swap panes</string>

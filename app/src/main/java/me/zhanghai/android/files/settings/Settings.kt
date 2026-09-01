@@ -184,6 +184,16 @@ object Settings {
             R.string.pref_key_file_list_animation, R.bool.pref_default_value_file_list_animation
         )
 
+    /**
+     * Tighter list rows: the item height shrinks to a single line so more files fit on screen.
+     * Applied in [me.zhanghai.android.files.filelist.FileListAdapter] at bind time.
+     */
+    val FILE_LIST_COMPACT_LAYOUT: SettingLiveData<Boolean> =
+        BooleanSettingLiveData(
+            R.string.pref_key_file_list_compact_layout,
+            R.bool.pref_default_value_file_list_compact_layout
+        )
+
     val FILE_LIST_DUAL_PANE: SettingLiveData<Boolean> =
         BooleanSettingLiveData(
             R.string.pref_key_file_list_dual_pane, R.bool.pref_default_value_file_list_dual_pane

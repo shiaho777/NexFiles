@@ -91,6 +91,7 @@ import me.zhanghai.android.files.provider.common.toByteString
 import me.zhanghai.android.files.provider.common.toModeString
 import me.zhanghai.android.files.provider.linux.isLinuxPath
 import me.zhanghai.android.files.util.asFileName
+import me.zhanghai.android.files.util.toSaveAsPathOrNull
 import me.zhanghai.android.files.util.createInstallPackageIntent
 import me.zhanghai.android.files.util.createIntent
 import me.zhanghai.android.files.util.createViewIntent
@@ -1919,6 +1920,54 @@ class SaveFileJob(private val source: Path, private val target: Path) : FileJob(
     override fun run() {
         save(source, target)
     }
+}
+
+/**
+ * Saves multiple shared content URIs into one directory. Each source is copied under its display
+ * name; the names were resolved on the caller side so the job only sees real paths.
+ */
+class SaveUrisFileJob(
+    private val sources: List<Pair<Uri, String?>>,
+    private val targetDirectory: Path
+) : FileJob() {
+    override fun run() {
+        val targetDirectoryPath = targetDirectory.asByteStringListPath()
+        for ((uri, displayName) in sources) {
+            val source = uri.toSaveAsPathOrNull() ?: continue
+            val fileName = displayName?.takeIf { it.isNotEmpty() } ?: getFileName(source)
+            var target: Path = targetDirectoryPath.resolve(fileName.toByteString())
+            if (target.exists(LinkOption.NOFOLLOW_LINKS)) {
+                target = getUniqueTarget(target)
+            }
+            save(source, target)
+            throwIfInterrupted()
+        }
+    }
+
+    private fun getUniqueTarget(target: Path): Path {
+        val targetPath = target.asByteStringListPath()
+        val fileName = targetPath.fileNameByteString!!
+        val countEndIndex = fileName.asFileName().baseName.length
+        var i = 1
+        while (true) {
+            val candidateName = setDuplicateCount(fileName, countEndIndex, i)
+            val candidate: Path = targetPath.resolveSibling(candidateName)
+            if (!candidate.exists(LinkOption.NOFOLLOW_LINKS)) {
+                return candidate
+            }
+            ++i
+        }
+    }
+
+    // "name (count).ext" — same shape as CopyFileJob's duplicate naming.
+    private fun setDuplicateCount(
+        fileName: ByteString,
+        countEnd: Int,
+        count: Int
+    ): ByteString =
+        ByteStringBuilder(fileName.substring(0, countEnd))
+            .append(" ($count)".toByteString())
+            .toByteString()
 }
 
 @Throws(IOException::class)

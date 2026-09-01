@@ -48,6 +48,28 @@ val Intent.saveAsPath: Path?
         return uri?.toPathOrNull()
     }
 
+/**
+ * Content URIs to save for ACTION_VIEW / ACTION_SEND (single) and ACTION_SEND_MULTIPLE (a list).
+ * Null when the action carries nothing saveable or any stream URI isn't convertible to a path.
+ */
+val Intent.saveAsUris: List<Uri>?
+    get() =
+        when (action) {
+            Intent.ACTION_VIEW -> listOfNotNull(data)
+            Intent.ACTION_SEND ->
+                getParcelableExtraSafe<Uri>(Intent.EXTRA_STREAM)?.let { listOf(it) }
+            Intent.ACTION_SEND_MULTIPLE ->
+                getParcelableArrayListExtraSafe<Uri>(Intent.EXTRA_STREAM)?.filterNotNull()
+            else -> null
+        }?.apply {
+            // Every URI must be convertible, otherwise the save job would fail halfway through.
+            for (uri in this) {
+                if (uri.toPathOrNull() == null) {
+                    return null
+                }
+            }
+        }
+
 private fun Uri.toPathOrNull(): Path? =
     when (scheme) {
         ContentResolver.SCHEME_FILE, null -> path?.takeIfNotEmpty()?.let { Paths.get(it) }
@@ -55,11 +77,13 @@ private fun Uri.toPathOrNull(): Path? =
             val uri = URI::class.createOrLog(toString())
                 // Some people use Uri.parse() without encoding their path. Let's try saving
                 // them by calling the other URI constructor that encodes everything.
-                ?: URI::class.createOrLog(scheme, userInfo, host, port, path, query, fragment)
+                ?: URI(scheme, userInfo, host, port, path, query, fragment)
             uri?.let { Paths.get(it) }
         }
         else -> null
     }
+
+internal fun Uri.toSaveAsPathOrNull(): Path? = toPathOrNull()
 
 private const val EXTRA_PATH_URI_LIST = "${BuildConfig.APPLICATION_ID}.extra.PATH_URI_LIST"
 

@@ -438,6 +438,10 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
             binding.breadcrumbLayout.setData(it)
         }
         viewModel.viewTypeLiveData.observe(viewLifecycleOwner) { onViewTypeChanged(it) }
+        adapter.isCompactLayout = Settings.FILE_LIST_COMPACT_LAYOUT.valueCompat
+        Settings.FILE_LIST_COMPACT_LAYOUT.observe(viewLifecycleOwner) { isCompactLayout ->
+            adapter.isCompactLayout = isCompactLayout
+        }
         // Live data only calls observeForever() on its sources when it is active, so we have to
         // make view type live data active first (so that it can load its initial value) before we
         // register another observer that needs to get the view type.
