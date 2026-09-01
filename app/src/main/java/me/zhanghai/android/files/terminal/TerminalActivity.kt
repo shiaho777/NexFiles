@@ -43,9 +43,10 @@ class TerminalActivity : AppCompatActivity() {
     private var buffer: TerminalBuffer? = null
     private var currentDistro: TerminalDistro? = null
 
-    // Non-null when launched to run a script (from the file list tap action) instead of an
-    // interactive shell; the path is the prepared, shell-uid-readable script location.
-    private var scriptArgv: List<String>? = null
+    // Non-null when launched to run an executable (from the file list tap action) instead of an
+    // interactive shell. Describes the whole run: what was detected, how it stages, and what
+    // argv ultimately executes.
+    private var scriptRun: ScriptRun? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,12 +70,24 @@ class TerminalActivity : AppCompatActivity() {
                 finish()
                 return
             }
-            scriptArgv = ScriptRunner.buildArgv(scriptPath)
+            val useRoot = intent.getBooleanExtra(EXTRA_RUN_AS_ROOT, false)
+            val kind = intent.getSerializableExtra(EXTRA_RUN_KIND) as? ScriptRunner.ScriptKind
+                ?: ScriptRunner.ScriptKind.SHELL_SCRIPT
+            scriptRun = ScriptRun(scriptPath, useRoot, kind)
         }
 
         // Size the buffer to the view once it has a known size.
         terminalView.post { beginSessionChain() }
     }
+
+    /** A pending scripted execution: detected kind, root escalation, and staging state. */
+    private data class ScriptRun(
+        val path: java8.nio.file.Path,
+        val useRoot: Boolean,
+        val kind: ScriptRunner.ScriptKind,
+        // For ELF runs: the /data/local/tmp path once the stage pass has placed the binary.
+        val stagedElfPath: String? = null
+    )
 
     private fun beginSessionChain() {
         if (!TerminalService.isShizukuInstalled) {
@@ -101,9 +114,9 @@ class TerminalActivity : AppCompatActivity() {
 
     private fun chooseDistroAndProceed() {
         // Script runs bypass distro selection entirely.
-        val argv = scriptArgv
-        if (argv != null) {
-            launchScriptSession(argv)
+        val run = scriptRun
+        if (run != null) {
+            beginScriptRun(run)
             return
         }
         // If we already have an Alpine or Debian installed, prefer it silently. Otherwise prompt.
@@ -116,18 +129,93 @@ class TerminalActivity : AppCompatActivity() {
     }
 
     /**
-     * Runs a script through the same PTY pipeline as an interactive shell, only with a fixed
-     * argv. The terminal view stays fully interactive, so scripts can prompt on stdin and the
-     * user can interrupt with Ctrl+C; the exit status is surfaced when the process ends.
+     * Dispatches a scripted run by kind. Shell scripts go straight to a PTY; ELF binaries need a
+     * first PTY pass to copy them onto /data/local/tmp (the only shell-uid writable+executable
+     * location) and only then a second PTY to exec them.
      */
-    private fun launchScriptSession(argv: List<String>) {
+    private fun beginScriptRun(run: ScriptRun) {
+        when (run.kind) {
+            ScriptRunner.ScriptKind.SHELL_SCRIPT ->
+                launchScriptSession(ScriptRunner.buildShellArgv(run.path, run.useRoot))
+            ScriptRunner.ScriptKind.ELF_BINARY ->
+                launchElfStagePass(run)
+        }
+    }
+
+    /**
+     * First pass for an ELF run: place the binary on /data/local/tmp and chmod it. Runs silently
+     * (no terminal view shown for this leg — output stays in the session until the real run
+     * replaces the buffer), then chains into [launchElfRunPass] on success.
+     */
+    private fun launchElfStagePass(run: ScriptRun) {
         val rows = terminalView.visibleRows()
         val cols = terminalView.visibleCols()
-        val config = TerminalConfig(argv = argv, envp = null, rows = rows, cols = cols)
+        val config = TerminalConfig(
+            argv = ScriptRunner.buildElfStageArgv(run.path), envp = null, rows = rows, cols = cols
+        )
+        val localBuffer = TerminalBuffer(rows, cols)
+        buffer = localBuffer
+        terminalView.buffer = localBuffer
+        progress.isVisible = true
+        lifecycleScope.launch {
+            try {
+                val s = TerminalService.createSession(config)
+                session = s
+                s.output.collect { }
+            } catch (e: TerminalServiceUnavailableException) {
+                progress.isVisible = false
+                showSetup(e.message ?: getString(R.string.terminal_unavailable), openShizuku = true)
+                return@launch
+            } catch (e: Exception) {
+                progress.isVisible = false
+                showToast(getString(R.string.script_stage_failed))
+                return@launch
+            }
+            val status = session?.waitForExit()
+            session = null
+            progress.isVisible = false
+            if (exitCode(status) != 0) {
+                showToast(getString(R.string.script_stage_failed))
+                return@launch
+            }
+            scriptRun = run.copy(stagedElfPath = ScriptRunner.elfTmpPath())
+            launchElfRunPass()
+        }
+    }
+
+    /** Second pass for an ELF run: exec the staged binary in an interactive PTY. */
+    private fun launchElfRunPass() {
+        val run = scriptRun ?: return
+        val stagedPath = run.stagedElfPath ?: return
+        val rows = terminalView.visibleRows()
+        val cols = terminalView.visibleCols()
         val localBuffer = TerminalBuffer(rows, cols)
         buffer = localBuffer
         terminalView.buffer = localBuffer
         terminalView.onInput = { bytes -> session?.write(bytes) }
+        launchScriptSession(ScriptRunner.buildElfArgv(), ScriptRunner.buildElfEnvp())
+    }
+
+    /**
+     * Runs a script through the same PTY pipeline as an interactive shell, only with a fixed
+     * argv. The terminal view stays fully interactive, so scripts can prompt on stdin and the
+     * user can interrupt with Ctrl+C; the exit status is surfaced when the process ends.
+     */
+    private fun launchScriptSession(
+        argv: List<String>,
+        envp: List<String>? = null
+    ) {
+        val rows = terminalView.visibleRows()
+        val cols = terminalView.visibleCols()
+        val config = TerminalConfig(argv = argv, envp = envp, rows = rows, cols = cols)
+        // The ELF stage pass keeps its own buffer; an interactive run (shell script or staged
+        // binary) rebinds the view here.
+        if (terminalView.buffer == null || buffer?.let { it !== terminalView.buffer } == false) {
+            val localBuffer = TerminalBuffer(rows, cols)
+            buffer = localBuffer
+            terminalView.buffer = localBuffer
+            terminalView.onInput = { bytes -> session?.write(bytes) }
+        }
 
         progress.isVisible = true
         lifecycleScope.launch {
@@ -150,6 +238,28 @@ class TerminalActivity : AppCompatActivity() {
             progress.isVisible = false
             statusText.isVisible = true
             statusText.text = getString(R.string.script_exit_code_format, exitCode(status))
+            // Queue a cleanup of our /data/local/tmp artifacts once the ELF run has ended.
+            if (scriptRun?.kind == ScriptRunner.ScriptKind.ELF_BINARY) {
+                runElfCleanup()
+            }
+        }
+    }
+
+    /** Best-effort silent removal of staged ELF files in /data/local/tmp. */
+    private fun runElfCleanup() {
+        lifecycleScope.launch {
+            try {
+                val config = TerminalConfig(
+                    argv = ScriptRunner.buildElfCleanupArgv(), envp = null, rows = 24, cols = 80
+                )
+                val s = TerminalService.createSession(config)
+                s.output.collect { }
+                s.waitForExit()
+            } catch (e: Exception) {
+                // Cleanup is best effort; the tmp files are tiny and /data/local/tmp is
+                // periodically wiped by the system anyway.
+                e.printStackTrace()
+            }
         }
     }
 
@@ -306,14 +416,26 @@ class TerminalActivity : AppCompatActivity() {
 
         private const val EXTRA_RUN_SCRIPT =
             "me.zhanghai.android.files.terminal.extra.RUN_SCRIPT"
+        private const val EXTRA_RUN_AS_ROOT =
+            "me.zhanghai.android.files.terminal.extra.RUN_AS_ROOT"
+        private const val EXTRA_RUN_KIND =
+            "me.zhanghai.android.files.terminal.extra.RUN_KIND"
 
         fun start(context: Context) {
             context.startActivity(Intent(context, TerminalActivity::class.java))
         }
 
-        /** Opens the terminal to run [scriptPath] (already validated as a shell script). */
-        fun startScript(context: Context, scriptPath: java8.nio.file.Path) {
-            val prepared = ScriptRunner.prepareRunnableScript(context, scriptPath)
+        /**
+         * Opens the terminal to run an already-detected executable: a shell script (optionally
+         * escalated with `su -c`) or an ELF binary (staged onto /data/local/tmp first).
+         */
+        fun startScript(
+            context: Context,
+            path: java8.nio.file.Path,
+            useRoot: Boolean,
+            kind: ScriptRunner.ScriptKind
+        ) {
+            val prepared = ScriptRunner.prepareRunnableScript(context, path, kind)
             if (prepared == null) {
                 context.showToast(R.string.script_run_failed)
                 return
@@ -321,6 +443,8 @@ class TerminalActivity : AppCompatActivity() {
             context.startActivity(
                 Intent(context, TerminalActivity::class.java).apply {
                     putExtra(EXTRA_RUN_SCRIPT, true)
+                    putExtra(EXTRA_RUN_AS_ROOT, useRoot)
+                    putExtra(EXTRA_RUN_KIND, kind)
                     extraPath = prepared
                 }
             )

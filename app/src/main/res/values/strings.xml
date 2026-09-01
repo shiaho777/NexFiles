@@ -910,8 +910,13 @@
     <string name="settings_data_import_failed">Could not import data: %1$s</string>
     <string name="settings_data_import_succeeded_format">Imported %1$,d entries</string>
     <string name="file_item_action_run_script">Run script</string>
+    <string name="script_run_as_shell">Run with the system shell (no root)</string>
+    <string name="script_run_as_root">Run as root (su)</string>
     <string name="confirm_run_script_title">Run script</string>
-    <string name="confirm_run_script_message">Run “%1$s” with the system shell (no root required, executed via Shizuku as shell)? The script runs with shell-level access — make sure you trust its contents.</string>
+    <string name="confirm_run_script_message">Run “%1$s” with the system shell? The script runs with shell-level access — make sure you trust its contents.</string>
+    <string name="script_elf_confirm_message">“%1$s” is an executable binary (ELF) disguised as a script. Choose how to run it — it will be copied to /data/local/tmp and executed there.</string>
+    <string name="script_root_unavailable">This script asks for root (an id/insmod check or root-only commands). Root isn’t reachable from this app; install Magisk/KernelSU and grant Shizuku or the app root first.</string>
+    <string name="script_stage_failed">Could not stage the executable for running</string>
     <string name="script_run_failed">Could not run the script</string>
     <string name="script_exit_code_format">Process finished with exit code %1$d</string>
     <plurals name="settings_root_strategy_message_format">

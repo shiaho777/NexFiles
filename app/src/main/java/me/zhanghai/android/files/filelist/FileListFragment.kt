@@ -89,6 +89,7 @@ import me.zhanghai.android.files.provider.linux.isLinuxPath
 import me.zhanghai.android.files.settings.Settings
 import me.zhanghai.android.files.terminal.ScriptRunner
 import me.zhanghai.android.files.terminal.TerminalActivity
+import me.zhanghai.android.files.provider.root.LibSuFileServiceLauncher
 import me.zhanghai.android.files.ui.AppBarLayoutExpandHackListener
 import me.zhanghai.android.files.ui.CoordinatorAppBarLayout
 import me.zhanghai.android.files.ui.FixQueryChangeSearchView
@@ -1535,11 +1536,27 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
     }
 
     private fun confirmRunScript(file: FileItem) {
+        val kind = ScriptRunner.detectKind(file.path)
+        val isRootAvailable = LibSuFileServiceLauncher.isSuAvailable()
+        val items = mutableListOf(
+            getString(R.string.script_run_as_shell) to false
+        )
+        if (isRootAvailable) {
+            items += getString(R.string.script_run_as_root) to true
+        }
+        val labels = items.map { it.first }.toTypedArray()
+        val message = when (kind) {
+            ScriptRunner.ScriptKind.ELF_BINARY ->
+                getString(R.string.script_elf_confirm_message, file.name)
+            ScriptRunner.ScriptKind.SHELL_SCRIPT ->
+                getString(R.string.confirm_run_script_message, file.name)
+        }
         AlertDialog.Builder(requireContext())
             .setTitle(R.string.confirm_run_script_title)
-            .setMessage(getString(R.string.confirm_run_script_message, file.name))
-            .setPositiveButton(R.string.file_item_action_run_script) { _, _ ->
-                TerminalActivity.startScript(requireContext(), file.path)
+            .setMessage(message)
+            .setItems(labels) { _, which ->
+                val useRoot = items[which].second
+                TerminalActivity.startScript(requireContext(), file.path, useRoot, kind)
             }
             .setNegativeButton(android.R.string.cancel) { _, _ -> openFileWith(file) }
             .show()
