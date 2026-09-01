@@ -20,6 +20,10 @@
         android:title="@string/file_item_action_run_script" />
 
     <item
+        android:id="@+id/action_view_kernel_module"
+        android:title="@string/kpm_viewer_title" />
+
+    <item
         android:id="@+id/action_cut"
         android:title="@string/cut" />
 

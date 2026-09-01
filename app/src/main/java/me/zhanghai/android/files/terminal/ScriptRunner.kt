@@ -35,16 +35,77 @@ import java.io.IOException
 object ScriptRunner {
     private val SCRIPT_EXTENSIONS = setOf("sh", "bash")
     private val SCRIPT_MIME_TYPES = setOf("application/x-sh", "text/x-shellscript")
+    private val KERNEL_MODULE_EXTENSIONS = setOf("ko", "kpm", "o")
 
     private const val SYSTEM_SH = "/system/bin/sh"
     private const val SCRIPT_STAGING_DIR = "scripts"
     private const val ELF_TMP_DIR = "/data/local/tmp"
     private const val ELF_TMP_PREFIX = "nexfiles_script_"
     private const val ELF_MAGIC_SIZE = 4
+    private const val MAX_SCAN_BYTES = 512 * 1024
+
+    // Kernel-level operations: these fail without real uid 0 regardless of any userland
+    // disguise (proot, a fake id), because the kernel checks the caller's capability.
+    private val KERNEL_PATTERNS = listOf(
+        Regex("""\binsmod\b"""), Regex("""\brmmod\b"""), Regex("""\bmodprobe\b"""),
+        Regex("""\bmount\b"""),
+        Regex("""\bsetenforce\b"""), Regex("""\bgetenforce\b"""),
+        Regex("""\breboot\b"""),
+        Regex("""\bmkfs\b"""), Regex("""\bdd\s+.*of=/dev/"""),
+        Regex("""\becho\s+[^>]*>\s*/dev/"""),
+        Regex("""chmod\s+.*\s+/dev/"""),
+        Regex("""\bwifi\b.*\bmac\b|\bmacchan""")
+    )
+
+    // A uid check alone (the classic gate at the top of root scripts) is spoofable: proot's
+    // --root-id makes `id -u` report 0 inside the session, so scripts whose only root dependency
+    // is this check run fine without root.
+    private val ID_CHECK_PATTERN = Regex("""id\s+-u|EUID|\$\{UID\}|[$]UID""")
 
     enum class ScriptKind {
         SHELL_SCRIPT,
         ELF_BINARY
+    }
+
+    /**
+     * How much a shell script depends on real root, judged by scanning its text. The levels
+     * decide what the run dialog promises: NONE and ID_CHECK run anywhere; ID_CHECK can also be
+     * satisfied by proot's --root-id; KERNEL requirements fail without real uid 0 no matter how
+     * the process is dressed up.
+     */
+    enum class RootRequirement {
+        NONE,
+        ID_CHECK,
+        KERNEL
+    }
+
+    /**
+     * Scans a shell script for root dependencies. Only the script text is inspected (cheap, no
+     * execution); a script can still hide a root requirement behind obfuscation, in which case
+     * the run itself surfaces it.
+     */
+    @JvmStatic
+    fun inspectRootRequirement(path: Path): RootRequirement {
+        val text = try {
+            path.newInputStream().use { inputStream ->
+                // Scripts needing analysis are small; cap to keep a pathological file cheap.
+                val bytes = inputStream.readBytes()
+                String(bytes, 0, bytes.size.coerceAtMost(MAX_SCAN_BYTES), Charsets.UTF_8)
+            }
+        } catch (e: IOException) {
+            e.printStackTrace()
+            return RootRequirement.NONE
+        }
+        var requirement = RootRequirement.NONE
+        for (pattern in KERNEL_PATTERNS) {
+            if (pattern.containsMatchIn(text)) {
+                return RootRequirement.KERNEL
+            }
+        }
+        if (ID_CHECK_PATTERN.containsMatchIn(text)) {
+            requirement = RootRequirement.ID_CHECK
+        }
+        return requirement
     }
 
     /** Whether tapping this file can offer a "run" action: a local shell script or ELF binary. */
@@ -63,6 +124,27 @@ object ScriptRunner {
         }
         // Disguised binaries ship with a .sh suffix; peek at the magic so the run action is
         // offered for them too. Reading 4 bytes is cheap even over the file provider.
+        return try {
+            pathKind(file.path) == ScriptKind.ELF_BINARY
+        } catch (e: IOException) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    /**
+     * Whether the long-press menu should offer the kernel-module viewer: a local .ko/.kpm/.o
+     * by extension, or any local file that sniffs as ELF (relocatable or not — the viewer only
+     * reads structure, so misroutes are harmless).
+     */
+    @JvmStatic
+    fun isKernelModule(file: FileItem): Boolean {
+        if (file.attributes.isDirectory || !file.path.isLinuxPath || file.path.isArchivePath) {
+            return false
+        }
+        if (file.extension.lowercase() in KERNEL_MODULE_EXTENSIONS) {
+            return true
+        }
         return try {
             pathKind(file.path) == ScriptKind.ELF_BINARY
         } catch (e: IOException) {

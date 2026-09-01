@@ -87,9 +87,12 @@ import me.zhanghai.android.files.provider.archive.isArchivePath
 import me.zhanghai.android.files.provider.common.newInputStream
 import me.zhanghai.android.files.provider.linux.isLinuxPath
 import me.zhanghai.android.files.settings.Settings
+import me.zhanghai.android.files.terminal.RootfsManager
 import me.zhanghai.android.files.terminal.ScriptRunner
 import me.zhanghai.android.files.terminal.TerminalActivity
+import me.zhanghai.android.files.terminal.TerminalDistro
 import me.zhanghai.android.files.provider.root.LibSuFileServiceLauncher
+import me.zhanghai.android.files.viewer.kpm.KpmViewerActivity
 import me.zhanghai.android.files.ui.AppBarLayoutExpandHackListener
 import me.zhanghai.android.files.ui.CoordinatorAppBarLayout
 import me.zhanghai.android.files.ui.FixQueryChangeSearchView
@@ -1537,26 +1540,63 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
 
     private fun confirmRunScript(file: FileItem) {
         val kind = ScriptRunner.detectKind(file.path)
-        val isRootAvailable = LibSuFileServiceLauncher.isSuAvailable()
-        val items = mutableListOf(
-            getString(R.string.script_run_as_shell) to false
-        )
-        if (isRootAvailable) {
-            items += getString(R.string.script_run_as_root) to true
-        }
-        val labels = items.map { it.first }.toTypedArray()
-        val message = when (kind) {
-            ScriptRunner.ScriptKind.ELF_BINARY ->
-                getString(R.string.script_elf_confirm_message, file.name)
+        val requirement = when (kind) {
+            ScriptRunner.ScriptKind.ELF_BINARY -> ScriptRunner.RootRequirement.NONE
             ScriptRunner.ScriptKind.SHELL_SCRIPT ->
-                getString(R.string.confirm_run_script_message, file.name)
+                ScriptRunner.inspectRootRequirement(file.path)
         }
+        val isRootAvailable = LibSuFileServiceLauncher.isSuAvailable()
+        val hasProotDistro = TerminalDistro.values().any { RootfsManager.isInstalled(it) }
+
+        data class RunOption(val labelRes: Int, val useRoot: Boolean, val useProot: Boolean)
+
+        val options = mutableListOf(RunOption(R.string.script_run_as_shell, false, false))
+        if (hasProotDistro) {
+            options += RunOption(R.string.script_run_in_proot, false, true)
+        }
+        if (isRootAvailable) {
+            options += RunOption(R.string.script_run_as_root, true, false)
+        }
+
+        val title: Int
+        val message: String
+        when (kind) {
+            ScriptRunner.ScriptKind.ELF_BINARY -> {
+                title = R.string.confirm_run_script_title
+                message = getString(R.string.script_elf_confirm_message, file.name)
+            }
+            ScriptRunner.ScriptKind.SHELL_SCRIPT -> {
+                title = R.string.confirm_run_script_title
+                // Surface the pre-scan verdict so the user knows the odds before running.
+                val diagnosis = when {
+                    requirement == ScriptRunner.RootRequirement.KERNEL &&
+                        !isRootAvailable ->
+                        getString(R.string.script_require_kernel_no_root)
+                    requirement == ScriptRunner.RootRequirement.KERNEL ->
+                        getString(R.string.script_require_kernel_root)
+                    requirement == ScriptRunner.RootRequirement.ID_CHECK ->
+                        getString(
+                            if (hasProotDistro) R.string.script_require_id_check_proot
+                            else R.string.script_require_id_check
+                        )
+                    else -> null
+                }
+                message = listOf(
+                    getString(R.string.confirm_run_script_message, file.name),
+                    diagnosis
+                ).filterNotNull().joinToString("\n\n")
+            }
+        }
+
+        val labels = options.map { getString(it.labelRes) }.toTypedArray()
         AlertDialog.Builder(requireContext())
-            .setTitle(R.string.confirm_run_script_title)
+            .setTitle(title)
             .setMessage(message)
             .setItems(labels) { _, which ->
-                val useRoot = items[which].second
-                TerminalActivity.startScript(requireContext(), file.path, useRoot, kind)
+                val option = options[which]
+                TerminalActivity.startScript(
+                    requireContext(), file.path, option.useRoot, kind, option.useProot
+                )
             }
             .setNegativeButton(android.R.string.cancel) { _, _ -> openFileWith(file) }
             .show()
@@ -1564,6 +1604,12 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
 
     override fun runScript(file: FileItem) {
         confirmRunScript(file)
+    }
+
+    override fun viewKernelModule(file: FileItem) {
+        val intent = Intent(requireContext(), KpmViewerActivity::class.java)
+            .apply { extraPath = file.path }
+        startActivitySafe(intent)
     }
 
     private fun openDex(file: FileItem) {

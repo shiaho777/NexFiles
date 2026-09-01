@@ -71,9 +71,10 @@ class TerminalActivity : AppCompatActivity() {
                 return
             }
             val useRoot = intent.getBooleanExtra(EXTRA_RUN_AS_ROOT, false)
+            val useProot = intent.getBooleanExtra(EXTRA_RUN_AS_PROOT, false)
             val kind = intent.getSerializableExtra(EXTRA_RUN_KIND) as? ScriptRunner.ScriptKind
                 ?: ScriptRunner.ScriptKind.SHELL_SCRIPT
-            scriptRun = ScriptRun(scriptPath, useRoot, kind)
+            scriptRun = ScriptRun(scriptPath, useRoot, kind, useProot)
         }
 
         // Size the buffer to the view once it has a known size.
@@ -85,6 +86,8 @@ class TerminalActivity : AppCompatActivity() {
         val path: java8.nio.file.Path,
         val useRoot: Boolean,
         val kind: ScriptRunner.ScriptKind,
+        // Run inside a proot distro instead of the bare system sh.
+        val useProot: Boolean = false,
         // For ELF runs: the /data/local/tmp path once the stage pass has placed the binary.
         val stagedElfPath: String? = null
     )
@@ -129,17 +132,49 @@ class TerminalActivity : AppCompatActivity() {
     }
 
     /**
-     * Dispatches a scripted run by kind. Shell scripts go straight to a PTY; ELF binaries need a
-     * first PTY pass to copy them onto /data/local/tmp (the only shell-uid writable+executable
-     * location) and only then a second PTY to exec them.
+     * Dispatches a scripted run by kind. Shell scripts go to a PTY (optionally proot-wrapped for
+     * a full userland, or `su -c` for root); ELF binaries need a first PTY pass to copy them
+     * onto /data/local/tmp (the only shell-uid writable+executable location) and only then a
+     * second PTY to exec them.
      */
     private fun beginScriptRun(run: ScriptRun) {
         when (run.kind) {
-            ScriptRunner.ScriptKind.SHELL_SCRIPT ->
-                launchScriptSession(ScriptRunner.buildShellArgv(run.path, run.useRoot))
+            ScriptRunner.ScriptKind.SHELL_SCRIPT -> {
+                if (run.useProot) {
+                    launchProotScriptSession(run)
+                } else {
+                    launchScriptSession(ScriptRunner.buildShellArgv(run.path, run.useRoot))
+                }
+            }
             ScriptRunner.ScriptKind.ELF_BINARY ->
                 launchElfStagePass(run)
         }
+    }
+
+    /**
+     * Runs a shell script inside a proot distro: full bash/coreutils toolchain, and proot's
+     * --root-id makes `id -u` report 0 so scripts gated by a uid check proceed without root.
+     * Anything the script does stays inside the userland — real kernel operations still fail.
+     */
+    private fun launchProotScriptSession(run: ScriptRun) {
+        val prootPath = RootfsManager.prootBinaryPath()
+        if (prootPath == null) {
+            showSetup(getString(R.string.terminal_proot_missing), openShizuku = false)
+            return
+        }
+        // Prefer an installed distro; if several are installed keep the first (Alpine wins).
+        val distro = TerminalDistro.values().firstOrNull { RootfsManager.isInstalled(it) }
+        if (distro == null) {
+            showSetup(getString(R.string.script_proot_not_installed), openShizuku = false)
+            return
+        }
+        val rows = terminalView.visibleRows()
+        val cols = terminalView.visibleCols()
+        val argv = RootfsManager.prootArgv(
+            distro, prootPath, rows, cols,
+            initialCommand = "sh '${run.path.toString().replace("'", "'\\''")}'"
+        )
+        launchScriptSession(argv)
     }
 
     /**
@@ -418,6 +453,8 @@ class TerminalActivity : AppCompatActivity() {
             "me.zhanghai.android.files.terminal.extra.RUN_SCRIPT"
         private const val EXTRA_RUN_AS_ROOT =
             "me.zhanghai.android.files.terminal.extra.RUN_AS_ROOT"
+        private const val EXTRA_RUN_AS_PROOT =
+            "me.zhanghai.android.files.terminal.extra.RUN_AS_PROOT"
         private const val EXTRA_RUN_KIND =
             "me.zhanghai.android.files.terminal.extra.RUN_KIND"
 
@@ -426,14 +463,16 @@ class TerminalActivity : AppCompatActivity() {
         }
 
         /**
-         * Opens the terminal to run an already-detected executable: a shell script (optionally
-         * escalated with `su -c`) or an ELF binary (staged onto /data/local/tmp first).
+         * Opens the terminal to run an already-detected executable: a shell script (bare,
+         * proot-wrapped, or escalated with `su -c`) or an ELF binary (staged onto
+         * /data/local/tmp first).
          */
         fun startScript(
             context: Context,
             path: java8.nio.file.Path,
             useRoot: Boolean,
-            kind: ScriptRunner.ScriptKind
+            kind: ScriptRunner.ScriptKind,
+            useProot: Boolean = false
         ) {
             val prepared = ScriptRunner.prepareRunnableScript(context, path, kind)
             if (prepared == null) {
@@ -444,6 +483,7 @@ class TerminalActivity : AppCompatActivity() {
                 Intent(context, TerminalActivity::class.java).apply {
                     putExtra(EXTRA_RUN_SCRIPT, true)
                     putExtra(EXTRA_RUN_AS_ROOT, useRoot)
+                    putExtra(EXTRA_RUN_AS_PROOT, useProot)
                     putExtra(EXTRA_RUN_KIND, kind)
                     extraPath = prepared
                 }
