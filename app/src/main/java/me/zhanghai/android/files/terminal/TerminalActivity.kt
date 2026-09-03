@@ -72,9 +72,10 @@ class TerminalActivity : AppCompatActivity() {
             }
             val useRoot = intent.getBooleanExtra(EXTRA_RUN_AS_ROOT, false)
             val useProot = intent.getBooleanExtra(EXTRA_RUN_AS_PROOT, false)
+            val useSpoof = intent.getBooleanExtra(EXTRA_RUN_AS_SPOOF, false)
             val kind = intent.getSerializableExtra(EXTRA_RUN_KIND) as? ScriptRunner.ScriptKind
                 ?: ScriptRunner.ScriptKind.SHELL_SCRIPT
-            scriptRun = ScriptRun(scriptPath, useRoot, kind, useProot)
+            scriptRun = ScriptRun(scriptPath, useRoot, kind, useProot, useSpoof)
         }
 
         // Size the buffer to the view once it has a known size.
@@ -88,6 +89,8 @@ class TerminalActivity : AppCompatActivity() {
         val kind: ScriptRunner.ScriptKind,
         // Run inside a proot distro instead of the bare system sh.
         val useProot: Boolean = false,
+        // Put a fake `id` on PATH so `id -u` gates see 0 (SPOOFABLE scripts only).
+        val useSpoof: Boolean = false,
         // For ELF runs: the /data/local/tmp path once the stage pass has placed the binary.
         val stagedElfPath: String? = null
     )
@@ -140,15 +143,33 @@ class TerminalActivity : AppCompatActivity() {
     private fun beginScriptRun(run: ScriptRun) {
         when (run.kind) {
             ScriptRunner.ScriptKind.SHELL_SCRIPT -> {
-                if (run.useProot) {
-                    launchProotScriptSession(run)
-                } else {
-                    launchScriptSession(ScriptRunner.buildShellArgv(run.path, run.useRoot))
+                when {
+                    run.useProot -> launchProotScriptSession(run)
+                    run.useSpoof -> launchSpoofedScriptSession(run)
+                    else ->
+                        launchScriptSession(ScriptRunner.buildShellArgv(run.path, run.useRoot))
                 }
             }
             ScriptRunner.ScriptKind.ELF_BINARY ->
                 launchElfStagePass(run)
         }
+    }
+
+    /**
+     * Runs a shell script with a fake `id` on PATH, so bare `id -u` gates see uid 0 and the
+     * script proceeds. Verified on-device (API29): the classic root gate passes this way. Real
+     * root-only operations still fail at the kernel — the failure diagnosis tells the user so.
+     */
+    private fun launchSpoofedScriptSession(run: ScriptRun) {
+        val fakeIdDir = ScriptRunner.prepareFakeIdBin(this)
+        if (fakeIdDir == null) {
+            showToast(getString(R.string.script_run_failed))
+            return
+        }
+        launchScriptSession(
+            ScriptRunner.buildSpoofedShellArgv(run.path),
+            ScriptRunner.buildSpoofedEnvp(fakeIdDir)
+        )
     }
 
     /**
@@ -254,11 +275,19 @@ class TerminalActivity : AppCompatActivity() {
 
         progress.isVisible = true
         lifecycleScope.launch {
+            // Collect output verbatim while sniffing it for kernel-level failure signatures, so
+            // the exit line can carry a diagnosis instead of a bare number.
+            val outputSniffer = StringBuilder()
             try {
                 val s = TerminalService.createSession(config)
                 session = s
                 progress.isVisible = false
-                s.output.collect { chunk -> terminalView.feed(chunk, 0, chunk.size) }
+                s.output.collect { chunk ->
+                    if (outputSniffer.length < DIAGNOSIS_SNIFF_LIMIT) {
+                        outputSniffer.append(String(chunk, Charsets.UTF_8))
+                    }
+                    terminalView.feed(chunk, 0, chunk.size)
+                }
             } catch (e: TerminalServiceUnavailableException) {
                 progress.isVisible = false
                 showSetup(e.message ?: getString(R.string.terminal_unavailable), openShizuku = true)
@@ -272,11 +301,39 @@ class TerminalActivity : AppCompatActivity() {
             val status = session?.waitForExit()
             progress.isVisible = false
             statusText.isVisible = true
-            statusText.text = getString(R.string.script_exit_code_format, exitCode(status))
+            val exitCode = exitCode(status)
+            statusText.text = getString(R.string.script_exit_code_format, exitCode)
+            // When the run failed, attach the verdict the output supports — users see "why"
+            // without scrolling back through the transcript.
+            val diagnosis = diagnoseFailure(exitCode, outputSniffer.toString())
+            if (diagnosis != null) {
+                statusText.text = statusText.text.toString() + "\n" + diagnosis
+            }
             // Queue a cleanup of our /data/local/tmp artifacts once the ELF run has ended.
             if (scriptRun?.kind == ScriptRunner.ScriptKind.ELF_BINARY) {
                 runElfCleanup()
             }
+        }
+    }
+
+    /**
+     * Maps failure signatures in the captured output to a one-line verdict. All three were
+     * reproduced on-device: `Operation not permitted` from a shell-uid insmod (root required),
+     * `Exec format error` from a root insmod of a module built for another kernel, and
+     * `Function not implemented` from a kernel missing the syscall entirely.
+     */
+    private fun diagnoseFailure(exitCode: Int, output: String): String? {
+        if (exitCode == 0) {
+            return null
+        }
+        return when {
+            output.contains("Operation not permitted") ->
+                getString(R.string.script_diag_eperm)
+            output.contains("Exec format error") ->
+                getString(R.string.script_diag_enoexec)
+            output.contains("Function not implemented") ->
+                getString(R.string.script_diag_enosys)
+            else -> null
         }
     }
 
@@ -442,12 +499,18 @@ class TerminalActivity : AppCompatActivity() {
         super.onDestroy()
         session?.close()
         session = null
-        // Remove scripts staged for shell-uid readability; originals stay untouched.
+        // Remove scripts staged for shell-uid readability and the fake id binary; originals
+        // stay untouched.
         ScriptRunner.cleanupStagedScripts(this)
+        ScriptRunner.cleanupFakeIdBin(this)
     }
 
     companion object {
         private const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
+
+        // Enough output to catch failure signatures from typical module-loading scripts
+        // without growing the sniffer unboundedly on chatty runs.
+        private const val DIAGNOSIS_SNIFF_LIMIT = 64 * 1024
 
         private const val EXTRA_RUN_SCRIPT =
             "me.zhanghai.android.files.terminal.extra.RUN_SCRIPT"
@@ -455,6 +518,8 @@ class TerminalActivity : AppCompatActivity() {
             "me.zhanghai.android.files.terminal.extra.RUN_AS_ROOT"
         private const val EXTRA_RUN_AS_PROOT =
             "me.zhanghai.android.files.terminal.extra.RUN_AS_PROOT"
+        private const val EXTRA_RUN_AS_SPOOF =
+            "me.zhanghai.android.files.terminal.extra.RUN_AS_SPOOF"
         private const val EXTRA_RUN_KIND =
             "me.zhanghai.android.files.terminal.extra.RUN_KIND"
 
@@ -472,7 +537,8 @@ class TerminalActivity : AppCompatActivity() {
             path: java8.nio.file.Path,
             useRoot: Boolean,
             kind: ScriptRunner.ScriptKind,
-            useProot: Boolean = false
+            useProot: Boolean = false,
+            useSpoof: Boolean = false
         ) {
             val prepared = ScriptRunner.prepareRunnableScript(context, path, kind)
             if (prepared == null) {
@@ -484,6 +550,7 @@ class TerminalActivity : AppCompatActivity() {
                     putExtra(EXTRA_RUN_SCRIPT, true)
                     putExtra(EXTRA_RUN_AS_ROOT, useRoot)
                     putExtra(EXTRA_RUN_AS_PROOT, useProot)
+                    putExtra(EXTRA_RUN_AS_SPOOF, useSpoof)
                     putExtra(EXTRA_RUN_KIND, kind)
                     extraPath = prepared
                 }

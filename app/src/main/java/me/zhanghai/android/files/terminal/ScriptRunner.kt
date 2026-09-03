@@ -39,6 +39,7 @@ object ScriptRunner {
 
     private const val SYSTEM_SH = "/system/bin/sh"
     private const val SCRIPT_STAGING_DIR = "scripts"
+    private const val FAKE_BIN_DIR = "fakebin"
     private const val ELF_TMP_DIR = "/data/local/tmp"
     private const val ELF_TMP_PREFIX = "nexfiles_script_"
     private const val ELF_MAGIC_SIZE = 4
@@ -241,6 +242,53 @@ object ScriptRunner {
         } else {
             listOf(SYSTEM_SH, scriptPath.toString())
         }
+
+    /**
+     * Writes a fake `id` into the app's external staging dir. Scripts gated by a bare
+     * `id -u`/`$UID` check run fine when that check sees 0 — verified on-device (API29):
+     * a PATH-injected fake id makes the classic root gate report `uid=0`. Real root-only
+     * operations (insmod & friends) still fail at the kernel; this only satisfies the gate.
+     */
+    @JvmStatic
+    fun prepareFakeIdBin(context: Context): Path? = try {
+        val fakeBinDir = File(stagingDir(context), FAKE_BIN_DIR)
+        fakeBinDir.mkdirs()
+        val fakeId = File(fakeBinDir, "id")
+        fakeId.writeText(
+            """
+            #!/system/bin/sh
+            case "${'$'}*" in
+              *-u*) echo 0 ;;
+              *) echo "uid=0(root) gid=0(root) groups=0(root)" ;;
+            esac
+            """.trimIndent()
+        )
+        fakeId.setReadable(true, false)
+        fakeId.setExecutable(true, false)
+        java8.nio.file.Paths.get(fakeId.absolutePath)
+    } catch (e: IOException) {
+        e.printStackTrace()
+        null
+    }
+
+    /**
+     * The argv + envp pair for a script run with the fake id on PATH: the script's `id -u`
+     * gate sees uid 0 and proceeds. Everything else runs as the real (shell) user.
+     */
+    @JvmStatic
+    fun buildSpoofedShellArgv(scriptPath: Path): List<String> =
+        listOf(SYSTEM_SH, scriptPath.toString())
+
+    @JvmStatic
+    fun buildSpoofedEnvp(fakeIdDir: Path): List<String> = listOf(
+        "PATH=$fakeIdDir:/product/bin:/system_ext/bin:/system/bin:/system/xbin:/odm/bin:/vendor/bin:/sbin"
+    )
+
+    /** Removes the fake id binary; call when the scripted run ends. */
+    @JvmStatic
+    fun cleanupFakeIdBin(context: Context) {
+        File(stagingDir(context), FAKE_BIN_DIR).deleteRecursively()
+    }
 
     /**
      * One-shot shell-uid pass that moves an ELF onto /data/local/tmp and marks it executable —
