@@ -135,6 +135,25 @@ class KpmViewerFragment : Fragment() {
                 "Format" to
                     if (model.isKpmModule) "KernelPatch module (KPM)" else "ELF kernel module / object"
             )
+            model.thisModuleName?.let {
+                add("Module name" to "$it (from this_module struct)")
+            }
+            model.vermagic?.let {
+                add("Target kernel (vermagic)" to it)
+            }
+            if (model.versionChecksums.isNotEmpty()) {
+                add(
+                    "Version checksums" to
+                        "${model.versionChecksums.size} entries (modversions build)"
+                )
+            }
+            // The capability profile leads with the verdict: what this module can do.
+            for (evidence in model.capabilities) {
+                add(
+                    "⚠ ${evidence.capability.name}" to
+                        "${evidence.capability.explanation} — e.g. ${evidence.matchedNames.take(4).joinToString(", ")}"
+                )
+            }
             add("Sections" to model.sections.size.toString())
             add("Symbols" to model.symbols.size.toString())
             val references = model.externalReferences
@@ -293,14 +312,16 @@ private class SymbolAdapter : SimpleAdapter<KpmModel.Symbol, RecyclerView.ViewHo
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val binding = KpmItemBinding.bind(holder.itemView)
         val symbol = getItem(position)
-        binding.nameText.text = symbol.name
+        // Flag scrambled names inline so the symbol table itself carries the obfuscation signal.
+        val suffix = if (KpmModel.isLikelyObfuscated(symbol.name)) "  [obfuscated?]" else ""
+        binding.nameText.text = symbol.name + suffix
         binding.metaText.text = buildString {
             append(if (symbol.isUndefined) "imported" else "defined")
             append(" · bind=${symbol.bind} type=${symbol.type}")
             if (symbol.size > 0) append(" · size=${symbol.size}")
         }
         holder.itemView.setOnLongClickListener {
-            clipboardManager.copyText(symbol.name, holder.itemView.context)
+            clipboardManager.copyText(symbol.name + suffix, holder.itemView.context)
             true
         }
     }
