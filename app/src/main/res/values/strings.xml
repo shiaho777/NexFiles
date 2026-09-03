@@ -920,6 +920,10 @@
     <string name="script_run_failed">Could not run the script</string>
     <string name="script_exit_code_format">Process finished with exit code %1$d</string>
     <string name="script_run_in_proot">Run in Linux environment (proot)</string>
+    <string name="script_run_spoofed_id">Bypass root check (fake id -u, still no real root)</string>
+    <string name="script_diag_eperm">Diagnosis: this operation needs real root — no userland trick can grant it. Run as root, or the script will stop here.</string>
+    <string name="script_diag_enoexec">Diagnosis: the module does not match this device’s kernel (Exec format error). Check the module’s vermagic against your kernel version.</string>
+    <string name="script_diag_enosys">Diagnosis: this kernel does not implement the required system call.</string>
     <string name="script_proot_not_installed">No Linux environment installed yet. Open the terminal first and install Alpine or Debian.</string>
     <string name="script_require_kernel_no_root">⚠ This script loads kernel modules (insmod) or needs real root. Without root it will fail — run it as root or don’t bother.</string>
     <string name="script_require_kernel_root">⚠ This script performs kernel-level operations (insmod). Running it as root is required.</string>

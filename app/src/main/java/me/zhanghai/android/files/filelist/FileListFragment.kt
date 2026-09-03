@@ -1548,14 +1548,21 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         val isRootAvailable = LibSuFileServiceLauncher.isSuAvailable()
         val hasProotDistro = TerminalDistro.values().any { RootfsManager.isInstalled(it) }
 
-        data class RunOption(val labelRes: Int, val useRoot: Boolean, val useProot: Boolean)
+        data class RunOption(val labelRes: Int, val useRoot: Boolean, val useProot: Boolean, val useSpoof: Boolean)
 
-        val options = mutableListOf(RunOption(R.string.script_run_as_shell, false, false))
+        val options = mutableListOf(RunOption(R.string.script_run_as_shell, false, false, false))
+        // The spoofed-id option only helps scripts whose root gate is a bare `id -u`; for
+        // kernel-level requirements nothing userland does helps.
+        if (requirement == ScriptRunner.RootRequirement.ID_CHECK ||
+            requirement == ScriptRunner.RootRequirement.NONE
+        ) {
+            options += RunOption(R.string.script_run_spoofed_id, false, false, true)
+        }
         if (hasProotDistro) {
-            options += RunOption(R.string.script_run_in_proot, false, true)
+            options += RunOption(R.string.script_run_in_proot, false, true, false)
         }
         if (isRootAvailable) {
-            options += RunOption(R.string.script_run_as_root, true, false)
+            options += RunOption(R.string.script_run_as_root, true, false, false)
         }
 
         val title: Int
@@ -1595,7 +1602,8 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
             .setItems(labels) { _, which ->
                 val option = options[which]
                 TerminalActivity.startScript(
-                    requireContext(), file.path, option.useRoot, kind, option.useProot
+                    requireContext(), file.path, option.useRoot, kind, option.useProot,
+                    option.useSpoof
                 )
             }
             .setNegativeButton(android.R.string.cancel) { _, _ -> openFileWith(file) }
