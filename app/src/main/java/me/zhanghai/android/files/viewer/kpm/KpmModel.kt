@@ -32,8 +32,117 @@ class KpmModel private constructor(
     val externalReferences: List<String>,
     val moduleInfo: List<Pair<String, String>>,
     val kpmInfo: KpmInfo?,
+    // The target kernel string from .modinfo's vermagic=, e.g. "4.14.117-perf SMP preempt
+    // mod_unload modversions aarch64" — the direct answer to "which kernel was this built for".
+    val vermagic: String?,
+    // The real module name from .gnu.linkonce.this_module (struct module's name field), which
+    // can differ from the file name; the sample ships as "4.14.117.ko" but is really "entryi".
+    val thisModuleName: String?,
+    // Symbol→CRC pairs from __versions, when the module was built with modversions enabled.
+    val versionChecksums: List<Pair<String, Long>>,
     val strings: List<String>
 ) {
+    enum class Capability(val explanation: String) {
+        SYSCALL_HOOK("Hooks system calls — can intercept and forge any syscall result"),
+        MEMORY_READ_WRITE("Reads and writes other processes' memory"),
+        INPUT_DEVICE_ACCESS("Accesses input devices — touch/key event injection or capture"),
+        EVENT_HIDING("Hides input events — the signature of touch-spoofing overlays"),
+        CHARDEV_INTERFACE("Registers a character device — talks to a userland companion app"),
+        PROC_ENTRY("Creates procfs entries — another userland control channel"),
+        BTF_OFFSET_PROBING("Probes BTF type info — adapts struct offsets across kernel versions"),
+        KALLSYMS_PROBING("Resolves arbitrary kernel symbols by name"),
+        OBFUSCATED_SYMBOLS("Contains deliberately scrambled symbol names")
+    }
+
+    data class CapabilityEvidence(val capability: Capability, val matchedNames: List<String>)
+
+    /**
+     * The module's capability profile: what it can do, derived from which kernel facilities it
+     * references and how its symbols are named. Computed once at parse time.
+     */
+    val capabilities: List<CapabilityEvidence> by lazy {
+        detectCapabilities()
+    }
+
+    private fun detectCapabilities(): List<CapabilityEvidence> {
+        val evidence = ArrayList<CapabilityEvidence>()
+        val referenceSet = externalReferences.toSet()
+        val stringSet = strings.toSet()
+        val allNames = symbols.map { it.name } + externalReferences
+
+        fun matched(vararg patterns: Regex, pool: Collection<String> = allNames): List<String> =
+            pool.filter { name -> patterns.any { it.containsMatchIn(name) } }
+
+        Capability.entries.forEach { capability ->
+            val hits: List<String> = when (capability) {
+                Capability.SYSCALL_HOOK -> matched(
+                    Regex("""hook_syscall"""),
+                    Regex("""unhook_syscall"""),
+                    Regex("""syscall(_table|_wrapper)?\b"""),
+                    Regex("""__x64_sys_|__arm64_sys_""")
+                )
+                Capability.MEMORY_READ_WRITE -> matched(
+                    Regex("""access_(process|remote)_vm"""),
+                    Regex("""\bfind_vma\b"""),
+                    Regex("""get_task_mm"""),
+                    Regex("""copy_(to|from)_user"""),
+                    Regex("""__arch_copy_(to|from)_user"""),
+                    Regex("""virt_to_page|phys_addr"""),
+                    Regex("""get_user_pages""")
+                )
+                Capability.INPUT_DEVICE_ACCESS -> {
+                    // Both symbol references and literal strings count: "/dev/input/*" often
+                    // appears only as a path constant.
+                    val symbolHits = matched(
+                        Regex("""input_(dev|handler|event|absinfo)"""),
+                        Regex("""\buinput\b""")
+                    )
+                    val stringHits = stringSet.filter {
+                        it.contains("/dev/input") || it.contains("uinput")
+                    }
+                    (symbolHits + stringHits).distinct()
+                }
+                Capability.EVENT_HIDING -> matched(
+                    Regex("""hide_event|unhide_event"""),
+                    Regex("""hide_icmp|hide_tcp|hide_process""")
+                )
+                Capability.CHARDEV_INTERFACE -> matched(
+                    Regex("""\bcdev_(add|init|del)\b"""),
+                    Regex("""alloc_chrdev_region|register_chrdev"""),
+                    Regex("""device_(create|destroy)"""),
+                    Regex("""class_(create|destroy)""")
+                )
+                Capability.PROC_ENTRY -> matched(
+                    Regex("""proc_(create|remove)"""),
+                    Regex("""remove_proc_entry""")
+                )
+                Capability.BTF_OFFSET_PROBING -> matched(
+                    Regex("""\bbtf_\w+""", RegexOption.IGNORE_CASE)
+                )
+                Capability.KALLSYMS_PROBING -> matched(
+                    Regex("""kallsyms_lookup_name"""),
+                    Regex("""kallsyms_on_each_symbol""")
+                )
+                Capability.OBFUSCATED_SYMBOLS -> {
+                    // Score symbol names for scrambles: consonant runs with digit sprinkles in
+                    // the 6–14 char band, like "F6ash_qg" or "h4kaPo_". Only enough volume
+                    // matters — a single odd name is noise, a dozen is a scheme.
+                    val suspicious = allNames.filter { isLikelyObfuscated(it) }
+                    if (suspicious.size >= OBFUSCATION_THRESHOLD) {
+                        suspicious.take(16)
+                    } else {
+                        emptyList()
+                    }
+                }
+            }
+            if (hits.isNotEmpty()) {
+                evidence += CapabilityEvidence(capability, hits)
+            }
+        }
+        return evidence
+    }
+
+
     data class Section(
         val name: String,
         val type: Long,
@@ -106,6 +215,23 @@ class KpmModel private constructor(
         private const val SHT_STRTAB = 3L
         private const val SHT_RELA = 4L
         private const val RELA_SIZE_64 = 24
+        private const val VERSIONS_ENTRY_SIZE = 64
+        private const val OBFUSCATION_THRESHOLD = 8
+
+        /**
+         * Heuristic for deliberately scrambled symbol names: consonant runs with digit sprinkles
+         * in the 6–14 char band, like "F6ash_qg" or "h4kaPo_". Real kernel symbols rarely mix
+         * 2+ digits into a short name with no vowels; scramble generators do it constantly.
+         */
+        internal fun isLikelyObfuscated(name: String): Boolean {
+            if (name.length < 6 || name.length > 14) {
+                return false
+            }
+            val vowels = name.count { it in "aeiouAEIOU" }
+            val digits = name.count { it.isDigit() }
+            val underscores = name.count { it == '_' }
+            return digits >= 2 && vowels <= 1 || (underscores >= 2 && digits >= 1 && vowels <= 2)
+        }
 
         // KernelPatch metadata sections are named `.kpm.info` in current toolchains and
         // `.kpm_info` in some older docs; both are flagged.
@@ -142,10 +268,14 @@ class KpmModel private constructor(
             val externalReferences = readExternalReferences(sections, reader, symbols)
             val moduleInfo = readModInfo(sections, bytes)
             val kpmInfo = readKpmInfo(sections, bytes)
+            val vermagic = moduleInfo.firstOrNull { it.first == "vermagic" }?.second
+            val thisModuleName = readThisModuleName(sections, bytes)
+            val versionChecksums = readVersionChecksums(sections, bytes)
             val strings = extractStrings(bytes)
             return KpmModel(
                 elfClass, isLittleEndian, elfType, machine,
-                sections, symbols, externalReferences, moduleInfo, kpmInfo, strings
+                sections, symbols, externalReferences, moduleInfo, kpmInfo,
+                vermagic, thisModuleName, versionChecksums, strings
             )
         }
 
@@ -341,7 +471,82 @@ class KpmModel private constructor(
             )
         }
 
-        /** Printable ASCII runs, capped so a 10 MB module cannot flood the view. */
+        /**
+         * Extracts the real module name from `.gnu.linkonce.this_module` — the in-memory
+         * `struct module` whose name field sits a few bytes in (offset varies across kernel
+         * versions). The sample's file name is "4.14.117.ko" but the struct says "entryi", which
+         * is exactly the kind of discrepancy worth surfacing. Falls back to the first printable
+         * run within the section's first 64 bytes.
+         */
+        private fun readThisModuleName(sections: List<Section>, bytes: ByteArray): String? {
+            val section = sections.firstOrNull { it.name == ".gnu.linkonce.this_module" }
+                ?: return null
+            val length = section.size
+                .coerceAtMost(64L)
+                .coerceAtMost((bytes.size - section.offset).coerceAtLeast(0).toLong())
+            if (length <= 0) {
+                return null
+            }
+            // Known struct offsets of the name field (module versions 4.x–6.x put it at 0..16);
+            // try them first, then accept any printable run.
+            for (probe in intArrayOf(0, 8, 16, 24, 32, 48)) {
+                if (probe >= length) {
+                    break
+                }
+                val candidate = readPrintableRun(bytes, section.offset.toInt() + probe, 64)
+                if (!candidate.isNullOrEmpty() && candidate[0].isLetter()) {
+                    return candidate
+                }
+            }
+            return readPrintableRun(bytes, section.offset.toInt(), length.toInt())
+        }
+
+        private fun readPrintableRun(bytes: ByteArray, start: Int, maxLength: Int): String? {
+            var index = start
+            val end = minOf(start + maxLength, bytes.size)
+            while (index < end && bytes[index].toInt() in 0x21..0x7e) {
+                ++index
+            }
+            val run = String(bytes, start, index - start, StandardCharsets.UTF_8)
+            return run.takeIf { it.length >= 3 }
+        }
+
+        /**
+         * Reads the __versions table (`{ unsigned long crc; char name[56]; }` per entry) used
+         * when the module was built with modversions. Empty for modules pinned to one kernel.
+         */
+        private fun readVersionChecksums(
+            sections: List<Section>,
+            bytes: ByteArray
+        ): List<Pair<String, Long>> {
+            val section = sections.firstOrNull { it.isVersions } ?: return emptyList()
+            val versions = ArrayList<Pair<String, Long>>()
+            var offset = section.offset
+            val end = section.offset + section.size
+            while (offset + VERSIONS_ENTRY_SIZE <= end && offset + VERSIONS_ENTRY_SIZE <= bytes.size) {
+                val offsetInt = offset.toInt()
+                val crc = readLittleEndianLong(bytes, offsetInt)
+                val nameStart = offsetInt + 8
+                val name = readPrintableRun(bytes, nameStart, 56)
+                if (!name.isNullOrEmpty()) {
+                    versions += name to crc
+                }
+                offset += VERSIONS_ENTRY_SIZE
+            }
+            return versions
+        }
+
+        private fun readLittleEndianLong(bytes: ByteArray, offset: Int): Long {
+            var value = 0L
+            for (index in 7 downTo 0) {
+                value = (value shl 8) or (bytes[offset + index].toLong() and 0xff)
+            }
+            return value
+        }
+
+        /**
+         * Printable ASCII runs, capped so a 10 MB module cannot flood the view.
+         */
         private fun extractStrings(bytes: ByteArray): List<String> {
             val strings = ArrayList<String>()
             val builder = StringBuilder()
