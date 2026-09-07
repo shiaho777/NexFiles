@@ -412,6 +412,21 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
                 else ->
                     if (path != null) {
                         val mimeType = intent.type?.asMimeTypeOrNull()
+                        // External apps fire ACTION_VIEW on an APK to mean "install this
+                        // package". NexFiles is registered as an APK handler for archive
+                        // browsing, but hijacking an install request into the archive viewer
+                        // strands the caller's flow, so forward it to the system package
+                        // installer and close this trampoline activity.
+                        if (intent.action == Intent.ACTION_VIEW && mimeType != null &&
+                            mimeType.isApk
+                        ) {
+                            // Forward the caller's content URI so the read permission grant
+                            // carries over to the package installer; re-generating our own
+                            // FileProvider URI would break the grant chain.
+                            installApk(path, intent.data)
+                            requireActivity().finish()
+                            return
+                        }
                         if (mimeType != null && path.isArchiveFile(mimeType)) {
                             path = path.createArchiveRootPath()
                         }
@@ -1671,7 +1686,24 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
     }
 
     override fun installApk(file: FileItem) {
-        val path = file.path
+        installApk(file.path)
+    }
+
+    private fun installApk(path: Path) {
+        installApk(path, null)
+    }
+
+    /**
+     * Forwards an APK to the system package installer. [externalUri] is the original URI from an
+     * external ACTION_VIEW intent; when it is a content:// URI it is used directly so the
+     * caller's read permission grant carries over to the installer. Otherwise a FileProvider URI
+     * is generated from [path].
+     */
+    private fun installApk(path: Path, externalUri: Uri?) {
+        if (externalUri != null && "content" == externalUri.scheme) {
+            startActivitySafe(externalUri.createInstallPackageIntent())
+            return
+        }
         val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             if (!path.isArchivePath) path.fileProviderUri else null
         } else {
