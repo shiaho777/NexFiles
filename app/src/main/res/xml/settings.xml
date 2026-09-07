@@ -137,9 +137,10 @@
                 android:defaultValue="@integer/pref_default_value_webdav_server_port"
                 app:useSimpleSummaryProvider="true" />
 
-            <me.zhanghai.android.files.settings.PathPreference
+            <me.zhanghai.android.files.webdavserver.WebDavServerHomeDirectoryPreference
                 android:key="@string/pref_key_webdav_server_home_directory"
-                android:title="@string/webdav_server_home_directory" />
+                android:title="@string/webdav_server_home_directory"
+                app:useSimpleSummaryProvider="true" />
         </PreferenceCategory>
 
         <me.zhanghai.android.files.settings.CharsetPreference
