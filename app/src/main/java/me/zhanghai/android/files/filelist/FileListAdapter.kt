@@ -364,12 +364,18 @@ class FileListAdapter(
         holder.currentItem = file
         bindViewHolderAnimation(holder)
         // Compact mode collapses the row to a single-line height; the description is hidden so the
-        // collapsed row shows the name only. Normal mode keeps the existing two-line height.
+        // collapsed row shows the name only. Normal mode keeps the existing two-line height. This
+        // only applies to list items: grid items must stay wrap_content, or the fixed height is
+        // entirely consumed by the aspect-ratio thumbnail and the name/icon row is crushed to zero.
         holder.itemLayout.layoutParams = holder.itemLayout.layoutParams.apply {
-            height = holder.itemLayout.resources.getDimensionPixelSize(
-                if (isCompactLayout) R.dimen.single_line_list_item_height
-                else R.dimen.two_line_list_item_height
-            )
+            height = if (FileViewType.entries[holder.itemViewType] == FileViewType.GRID) {
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            } else {
+                holder.itemLayout.resources.getDimensionPixelSize(
+                    if (isCompactLayout) R.dimen.single_line_list_item_height
+                    else R.dimen.two_line_list_item_height
+                )
+            }
         }
         holder.itemLayout.apply {
             setOnClickListener {
