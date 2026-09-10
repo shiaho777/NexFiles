@@ -86,6 +86,13 @@ cd NexFiles
 - Regenerating the baseline profile (only needed after significant code-path changes):
   `./gradlew :app:generateReleaseBaselineProfile` on a rooted device or emulator; the checked-in
   profile at `app/src/release/generated/baselineProfiles/` is what release builds embed.
+- Distribution APKs per ABI (one ~7 MB APK per architecture instead of a universal one):
+  `./gradlew -PenableAbiSplits assembleRelease`. Default builds stay a single universal APK so
+  CI artifacts and F-Droid keep seeing exactly one APK per variant.
+- Shipped locales are English and Chinese (zh-Hans, zh-Hant) — the languages this project
+  maintains listings and docs in; the inherited upstream locales were stale at <=61% string
+  coverage and cost ~1.3 MB of uncompressed `resources.arsc`. Restore one via
+  `resourceConfigurations` in `app/build.gradle`.
 
 CI builds `assembleDebug lintVitalRelease` on every push ([workflow](.github/workflows/android.yml)).
 

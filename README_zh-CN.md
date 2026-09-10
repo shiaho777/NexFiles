@@ -84,6 +84,12 @@ cd NexFiles
 - 重新生成基线 profile（仅在代码路径有大变化后需要）：在已 root 的设备或模拟器上运行
   `./gradlew :app:generateReleaseBaselineProfile`；release 构建嵌入的是入库的
   `app/src/release/generated/baselineProfiles/`  profile。
+- 按 ABI 的分发包（每个架构一个约 7 MB 的 APK，取代单个 universal 包）：
+  `./gradlew -PenableAbiSplits assembleRelease`。默认构建仍是单个 universal APK，CI 产物与
+  F-Droid 看到的每变体 APK 数量不变。
+- 随包语种为英语与中文（zh-Hans、zh-Hant）——即本项目维护商店 listing 与文档的语言；继承自
+  上游的其余语种停留于 ≤61% 字符串覆盖度的旧快照，却占约 1.3 MB 未压缩 `resources.arsc`。
+  如需恢复某个语种，改 `app/build.gradle` 的 `resourceConfigurations` 即可。
 
 CI 在每次推送时构建 `assembleDebug lintVitalRelease`（[workflow](.github/workflows/android.yml)）。
 

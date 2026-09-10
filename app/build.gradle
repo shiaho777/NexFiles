@@ -19,6 +19,14 @@ android {
     defaultConfig {
         applicationId 'me.zhanghai.android.nexfiles'
         minSdk 23
+        // Ship only the locales this project actually maintains: the store listings
+        // (fastlane/metadata) and READMEs exist for English and Chinese only, while the other
+        // 27 locales are stale upstream Material Files snapshots at <=61% string coverage that
+        // already show a half-English UI for everything this fork added. resources.arsc must be
+        // stored uncompressed in the APK (targetSdk 30+), so those locales cost their full
+        // ~1.3 MB of download; measured en-only vs all-locales arsc: 0.73 MB vs 2.19 MB.
+        // Add a qualifier back here (e.g. 'de') to restore a locale.
+        resourceConfigurations += ['en', 'zh-rCN', 'zh-rTW']
         // Not supporting foreground service timeout yet.
         //noinspection OldTargetApi
         targetSdk 34
@@ -89,13 +97,33 @@ android {
         resources {
             excludes += [
                     'META-INF/DEPENDENCIES',
-                    'org/bouncycastle/pqc/crypto/picnic/*'
+                    'org/bouncycastle/pqc/crypto/picnic/*',
+                    // German variants of Bouncy Castle's CertPathReviewer message bundle;
+                    // ResourceBundle falls back to the shipped English base when absent.
+                    'org/bouncycastle/pkix/CertPathReviewerMessages_de.properties',
+                    'org/bouncycastle/x509/CertPathReviewerMessages_de.properties'
             ]
         }
     }
     bundle {
         language {
             enableSplit = false
+        }
+    }
+    // Opt-in per-ABI packaging for distribution runs:
+    //   ./gradlew -PenableAbiSplits assembleRelease
+    // emits one APK per ABI instead of a single universal one, so an arm64 device (every
+    // real device this app targets — the hook/terminal native stack is ARM-only anyway)
+    // no longer downloads the armeabi-v7a libraries. Default builds stay universal so CI
+    // artifacts and F-Droid keep seeing exactly one APK per variant.
+    if (project.hasProperty('enableAbiSplits')) {
+        splits {
+            abi {
+                enable true
+                reset()
+                include 'armeabi-v7a', 'arm64-v8a'
+                universalApk false
+            }
         }
     }
 }
