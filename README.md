@@ -37,7 +37,7 @@ also look *inside* files:
 - **APK tooling** — signature viewer (v1/v2/v3/v3.1 schemes with X.509 details and fingerprints), APK signer (v1/v2/v3), signature stripper, split-APK installer (`.apks`/`.xapk`/`.apkm`), and installed-app extraction.
 - **Deep viewers & editors** — text editor with in-file find, hex editor, AXML and ARSC inspectors, DEX browser/editor (string pool, const-string patching via dexlib2), image and media viewers.
 - **Power-user file management** — recursive search with regex/wildcards + type/size/time filters, in-archive editing (copy-on-write overlay), recycle bin, batch checksums (MD5/SHA-1/SHA-256), batch rename, dual-pane layout, FTP and WebDAV servers to share files out.
-- **Performance work** — five documented optimization rounds, including fixing DiffUtil equality semantics that had never actually worked on the local file system, and a background async list differ.
+- **Performance work** — five documented optimization rounds, including fixing DiffUtil equality semantics that had never actually worked on the local file system, and a background async list differ. On top of that, a device-recorded **baseline profile** (see the `benchmark` module) ships inside the APK, so ART AOT-compiles the startup and file-list paths at install time instead of JIT-ing them during real use.
 
 <p align="center">
   <img src="docs/assets/stats.svg" alt="Stat cards: 76.0k lines of Kotlin in 779 files, 11 file system providers, 2,615 lines of JNI C/C++, 32 AIDL interfaces, 24.7k lines in provider, 2,556 in hook, 6,004 in viewer, 1,867 in terminal" width="720">
@@ -83,6 +83,16 @@ cd NexFiles
 - JDK 17+, Android SDK 36, NDK (for the JNI parts: syscalls, terminal PTY, hook bridge).
 - The terminal's proot binary must be provided manually — see `jniLibs/README-proot.md`.
 - Signing: copy `signing.properties.example` to `signing.properties` (optional for debug builds).
+- Regenerating the baseline profile (only needed after significant code-path changes):
+  `./gradlew :app:generateReleaseBaselineProfile` on a rooted device or emulator; the checked-in
+  profile at `app/src/release/generated/baselineProfiles/` is what release builds embed.
+- Distribution APKs per ABI (one ~7 MB APK per architecture instead of a universal one):
+  `./gradlew -PenableAbiSplits assembleRelease`. Default builds stay a single universal APK so
+  CI artifacts and F-Droid keep seeing exactly one APK per variant.
+- Shipped locales are English and Chinese (zh-Hans, zh-Hant) — the languages this project
+  maintains listings and docs in; the inherited upstream locales were stale at <=61% string
+  coverage and cost ~1.3 MB of uncompressed `resources.arsc`. Restore one via
+  `resourceConfigurations` in `app/build.gradle`.
 
 CI builds `assembleDebug lintVitalRelease` on every push ([workflow](.github/workflows/android.yml)).
 
