@@ -73,6 +73,15 @@ android {
     packagingOptions {
         jniLibs {
             useLegacyPackaging true
+            // Our own JNI libs (syscall, hiddenapi, terminal, nexhook) are ARM-only per the
+            // abiFilters above, but the prebuilt libarchive/libselinux AARs also ship x86/x86_64.
+            // Keeping those actively breaks x86_64 emulators instead of helping them: the
+            // installer sees x86_64 libs, picks x86_64 as the primary ABI and extracts only
+            // those, so ARM-only libsyscall never gets installed and the local file provider
+            // fails to load. With no x86 libs in the APK the emulator falls back to arm64-v8a
+            // through ARM translation and every library stays consistent. Also saves ~4.7 MB
+            // uncompressed (~2 MB compressed) on real devices, which are all ARM.
+            excludes += ['lib/x86/**', 'lib/x86_64/**']
         }
         resources {
             excludes += [
@@ -110,7 +119,22 @@ dependencies {
     // human-readable smali text, and smali assembles edited text back into a ClassDef. Same
     // 2.5.2 version as dexlib2 to guarantee API compatibility; both are on Maven Central.
     implementation 'org.smali:baksmali:2.5.2'
-    implementation 'org.smali:smali:2.5.2'
+    implementation('org.smali:smali:2.5.2') {
+        // smali's POM drags in the full ANTLR 3 tool (org.antlr:antlr), whose codegen templates
+        // (.stg grammars for C/C++/C#/ObjC/Delphi/Python...) and tool classes are only needed to
+        // *generate* parsers from grammars. The parser smali ships is pre-generated and uses only
+        // org.antlr:antlr-runtime, which smali also depends on directly and which survives this
+        // exclusion. Dropping the tool removes ~1.3 MB of dead .stg resources that R8 cannot strip
+        // (they are jar resources, not classes) plus thousands of dead tool classes.
+        exclude group: 'org.antlr', module: 'antlr'
+        // Same story for StringTemplate: the ANTLR tool uses it to render generated code, the
+        // pre-generated smali parser never touches it at runtime.
+        exclude group: 'org.antlr', module: 'stringtemplate'
+    }
+    // smali's POM declares antlr-runtime at runtime scope only; the compile classpath used to get
+    // org.antlr.runtime.tree.TreeParser (supertype of SmaliTreeWalker, which DexSmaliBridge
+    // touches) from the full tool jar above. Declare it explicitly so compilation still sees it.
+    implementation 'org.antlr:antlr-runtime:3.5.2'
     // lsplant (LSPosed's ART method-hook core) for the runtime hook feature. LGPL-3.0, the
     // library that actually rewrites ArtMethod entry points to install Java method hooks. We
     // pull the standalone variant — it is a pure-native prefab library (C++ header + .so), so
@@ -215,6 +239,11 @@ dependencies {
     // tar.gz extraction for the terminal rootfs downloads. Apache 2.0, handles pax/GNU/ustar
     // variants that hand-writing a tar reader would get wrong on real-world rootfs archives.
     implementation 'org.apache.commons:commons-compress:1.27.1'
+    // XZ for Java, the decompressor commons-compress delegates to for .tar.xz streams. It is an
+    // optional compileOnly dependency of commons-compress, so without it here the release R8
+    // build fails on the missing org.tukaani.xz classes — and at runtime the Debian rootfs
+    // (a .tar.xz) would crash RootfsManager with NoClassDefFoundError. Public domain, pure Java.
+    implementation 'org.tukaani:xz:1.10'
     // Media3 (ExoPlayer successor) for the built-in media viewer. Replaces the system VideoView:
     // better format coverage, real error handling, and proper lifecycle/resume support. We pull
     // core + UI (PlayerView with built-in controls); FFmpeg extension can be added later for
