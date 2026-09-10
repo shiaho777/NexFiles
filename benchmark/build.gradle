@@ -1,0 +1,49 @@
+/*
+ * Macrobenchmark + baseline profile producer module.
+ *
+ * Runs on a connected device/emulator (rooted, or API 34+): `./gradlew :benchmark:generateBaselineProfile`
+ * drives the app through startup and a file-list scroll, records which classes/methods ART
+ * actually executes, and writes the profile that the app module embeds as
+ * assets/dexopt/baseline.prof so those paths are AOT-compiled at install time.
+ */
+
+apply plugin: 'com.android.test'
+apply plugin: 'androidx.baselineprofile'
+
+android {
+    namespace 'me.zhanghai.android.nexfiles.benchmark'
+    compileSdk = 36
+
+    defaultConfig {
+        // Baseline profile collection needs ART profile dumping, available from API 28.
+        minSdk 28
+        targetSdk 34
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    // The app under test; the generate task builds and installs its release variant.
+    targetProjectPath = ':app'
+}
+
+// The test module compiles against the app under test, so it must resolve the app's external
+// dependencies too — including the JitPack-only ones that app/build.gradle declares locally.
+repositories {
+    maven {
+        url 'https://jitpack.io'
+    }
+}
+
+dependencies {
+    // 1.5.0 is listed in the Google Maven index but not actually published (404); 1.4.1 is the
+    // newest resolvable version. The baselineprofile Gradle plugin stays at 1.5.0, which is the
+    // line verified against AGP 9.1.
+    def androidx_benchmark_version = '1.4.1'
+    implementation "androidx.benchmark:benchmark-macro-junit4:$androidx_benchmark_version"
+    implementation 'androidx.test.ext:junit:1.3.0'
+    implementation 'androidx.test.uiautomator:uiautomator:2.3.0'
+}

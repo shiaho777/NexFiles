@@ -36,7 +36,7 @@ Material Files 是一个出色的白纸起点。NexFiles 把它扩展成一件"�
 - **APK 工具链** —— 签名查看（v1/v2/v3/v3.1 方案 + X.509 证书详情与指纹）、APK 签名（v1/v2/v3）、签名剥离、分包安装（`.apks`/`.xapk`/`.apkm`）、已安装应用提取。
 - **深度查看与编辑** —— 支持文件内查找的文本编辑器、十六进制编辑器、AXML/ARSC 检视器、DEX 浏览/编辑（字符串池、基于 dexlib2 的 const-string 补丁）、图片与媒体查看器。
 - **进阶文件管理** —— 正则/通配符 + 类型/大小/时间过滤的递归搜索、压缩包内编辑（copy-on-write 覆盖层）、回收站、批量校验和（MD5/SHA-1/SHA-256）、批量重命名、双窗格布局、对外共享文件的 FTP 与 WebDAV 服务端。
-- **性能工程** —— 五轮有文档记录的优化，包括修复本地文件系统上 DiffUtil 相等性语义从未真正生效的问题，以及后台异步列表 differ。
+- **性能工程** —— 五轮有文档记录的优化，包括修复本地文件系统上 DiffUtil 相等性语义从未真正生效的问题，以及后台异步列表 differ。在此之上，APK 内还随附设备实录的**基线 profile**（见 `benchmark` 模块），ART 会在安装期就对启动与文件列表路径做 AOT 编译，而不是等真实使用时再 JIT。
 
 <p align="center">
   <img src="docs/assets/stats.svg" alt="统计卡片：76.0k 行 Kotlin（779 个文件）、11 个文件系统 provider、2,615 行 JNI C/C++、32 个 AIDL 接口、provider 24.7k 行、hook 2,556 行、viewer 6,004 行、terminal 1,867 行" width="720">
@@ -81,6 +81,9 @@ cd NexFiles
 - JDK 17+、Android SDK 36、NDK（JNI 部分：syscall 绑定、终端 PTY、hook 桥）。
 - 终端的 proot 二进制需手动提供——见 `jniLibs/README-proot.md`。
 - 签名：把 `signing.properties.example` 复制为 `signing.properties`（debug 构建可跳过）。
+- 重新生成基线 profile（仅在代码路径有大变化后需要）：在已 root 的设备或模拟器上运行
+  `./gradlew :app:generateReleaseBaselineProfile`；release 构建嵌入的是入库的
+  `app/src/release/generated/baselineProfiles/`  profile。
 
 CI 在每次推送时构建 `assembleDebug lintVitalRelease`（[workflow](.github/workflows/android.yml)）。
 
