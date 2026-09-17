@@ -2510,11 +2510,13 @@ class WriteFileJob(
     private val content: ByteArray,
     private val listener: ((Boolean) -> Unit)?
 ) : FileJob() {
-    @Throws(IOException::class)
-    override fun run() {
-        val successful = write(file, content)
+    private val completion = WriteCompletion { successful ->
         listener?.let { mainExecutor.execute { it(successful) } }
     }
+
+    override fun run() = completion.run { write(file, content) }
+
+    override fun cancelBeforeStart() = completion.cancelBeforeStart()
 }
 
 @Throws(IOException::class)

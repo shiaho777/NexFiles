@@ -35,12 +35,19 @@ also look *inside* files:
   injection path is kept as a root fallback. See [hook paths](#the-sandbox-hooking-approach).
 - **Built-in terminal** — real PTY (native `forkpty`) + VT100 emulator, with Alpine/Debian rootfs via proot, and a Shizuku path running as shell UID.
 - **APK tooling** — signature viewer (v1/v2/v3/v3.1 schemes with X.509 details and fingerprints), APK signer (v1/v2/v3), signature stripper, split-APK installer (`.apks`/`.xapk`/`.apkm`), and installed-app extraction.
+
+  > **Security note:** the signer ships a built-in *default* signer (key in
+  > `app/src/main/res/raw/nexfiles_default_keystore`; the password is documented in
+  > `DefaultSignerProvider.kt`). It exists so you can sign a rebuilt APK without supplying your
+  > own key. It is public by design — anyone can sign with it — so an APK bearing the "NexFiles
+  > default signer" signature proves nothing about who built it. For releases you care about,
+  > sign with your own key and compare fingerprints against the ones you published.
 - **Deep viewers & editors** — text editor with in-file find, hex editor, AXML and ARSC inspectors, DEX browser/editor (string pool, const-string patching via dexlib2), image and media viewers.
 - **Power-user file management** — recursive search with regex/wildcards + type/size/time filters, in-archive editing (copy-on-write overlay), recycle bin, batch checksums (MD5/SHA-1/SHA-256), batch rename, dual-pane layout, FTP and WebDAV servers to share files out.
 - **Performance work** — five documented optimization rounds, including fixing DiffUtil equality semantics that had never actually worked on the local file system, and a background async list differ. On top of that, a device-recorded **baseline profile** (see the `benchmark` module) ships inside the APK, so ART AOT-compiles the startup and file-list paths at install time instead of JIT-ing them during real use.
 
 <p align="center">
-  <img src="docs/assets/stats.svg" alt="Stat cards: 76.0k lines of Kotlin in 779 files, 11 file system providers, 2,615 lines of JNI C/C++, 32 AIDL interfaces, 24.7k lines in provider, 2,556 in hook, 6,004 in viewer, 1,867 in terminal" width="720">
+  <img src="docs/assets/stats.svg" alt="Stat cards: 79.3k lines of Kotlin in 793 files, 11 file system providers, 2,615 lines of JNI C/C++, 32 AIDL interfaces, 24.9k lines in provider, 2,556 in hook, 7,185 in viewer, 2,526 in terminal" width="720">
 </p>
 
 ## Preview

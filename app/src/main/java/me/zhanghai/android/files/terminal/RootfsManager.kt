@@ -90,7 +90,8 @@ object RootfsManager {
             if (responseCode !in 200..299) {
                 throw IOException("Download failed: HTTP $responseCode")
             }
-            val total = connection.contentLengthLong.takeIf { it > 0 } ?: -1L
+            val total = connection.getHeaderField("Content-Length")?.toLongOrNull()
+                ?.takeIf { it > 0 } ?: -1L
             val digest = if (distro.sha256.isNotEmpty()) MessageDigest.getInstance("SHA-256") else null
             connection.inputStream.use { input ->
                 FileOutputStream(target).use { output ->

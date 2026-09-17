@@ -320,6 +320,7 @@ class HookConfigActivity : AppCompatActivity() {
         return true
     }
 
+    @Suppress("MissingSuperCall")
     override fun onBackPressed() {
         onSupportNavigateUp()
     }

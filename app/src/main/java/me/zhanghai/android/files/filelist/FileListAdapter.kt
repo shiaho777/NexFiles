@@ -62,20 +62,32 @@ class FileListAdapter(
 
     // Cached recursive sizes for directories (computed off-thread). A directory's displayed size
     // comes from here when present, falling back to the entry's own size otherwise.
-    var directorySizes: Map<Path, FileSize>? = null
+    var directorySizes: Map<Path, FileSize> = emptyMap()
         private set
 
-    /**
-     * Refreshes the cached directory sizes and rebinds only the visible positions whose size
-     * actually changed, instead of republishing the whole list on every incremental update.
-     */
-    fun updateDirectorySizes(sizes: Map<Path, FileSize>) {
+    /** Demand includes cached folders too, so they remain owned while visible. No binding I/O. */
+    fun collectDirectorySizeDemand(positions: List<Int>): List<Path> =
+        positions.mapNotNull { position ->
+            if (position !in 0 until itemCount) return@mapNotNull null
+            getItem(position).takeIf {
+                it.attributes.isDirectory && !it.attributesNoFollowLinks.isSymbolicLink
+            }?.path
+        }
+
+    /** Used only when the view/list is being discarded; no RecyclerView notification. */
+    fun clearDirectorySizes() {
+        directorySizes = emptyMap()
+    }
+
+    /** Called from a posted viewport update, never from binding/layout. */
+    fun updateDirectorySizes(sizes: Map<Path, FileSize>, positions: List<Int>) {
         val oldSizes = directorySizes
         directorySizes = sizes
-        for (index in 0..<itemCount) {
-            val path = getItem(index).path
-            if (sizes[path] != oldSizes?.get(path)) {
-                notifyItemChanged(index, PAYLOAD_STATE_CHANGED)
+        for (position in positions) {
+            if (position !in 0 until itemCount) continue
+            val file = getItem(position)
+            if (file.attributes.isDirectory && sizes[file.path] != oldSizes[file.path]) {
+                notifyItemChanged(position, PAYLOAD_DIRECTORY_SIZE_CHANGED)
             }
         }
     }
@@ -359,6 +371,10 @@ class FileListAdapter(
             }
         }
         if (payloads.isNotEmpty()) {
+            // RecyclerView may merge selection and size payloads for the same row.
+            if (PAYLOAD_DIRECTORY_SIZE_CHANGED in payloads) {
+                bindDescription(holder, file)
+            }
             return
         }
         holder.currentItem = file
@@ -459,29 +475,7 @@ class FileListAdapter(
             }
         }
         holder.nameText.text = highlightFileName(file.name)
-        val description = if (isDirectory) {
-            null
-        } else {
-            val context = holder.nameText.context
-            val lastModificationTime = attributes.lastModifiedTime().toInstant()
-                .formatShort(context)
-            // Directories show their cached recursive size once computed; until then the entry's
-            // own size (a small placeholder) is shown rather than blocking on computation.
-            val size = if (attributes.isDirectory) {
-                directorySizes?.let { it[path]?.formatHumanReadable(context) }
-                    ?: attributes.fileSize.formatHumanReadable(context)
-            } else {
-                attributes.fileSize.formatHumanReadable(context)
-            }
-            val descriptionSeparator = context.getString(R.string.file_item_description_separator)
-            listOf(lastModificationTime, size).joinToString(descriptionSeparator)
-        }
-        holder.descriptionText?.apply {
-            // In compact layout the row is single-line; hide the description entirely so the name
-            // is vertically centered.
-            isVisible = !isCompactLayout
-            text = description
-        }
+        bindDescription(holder, file)
         val isArchivePath = path.isArchivePath
         menu.findItem(R.id.action_copy)
             .setTitle(if (isArchivePath) R.string.file_item_action_extract else R.string.copy)
@@ -496,6 +490,31 @@ class FileListAdapter(
         menu.findItem(R.id.action_run_script).isVisible = ScriptRunner.isShellScript(file)
         menu.findItem(R.id.action_view_kernel_module).isVisible = ScriptRunner.isKernelModule(file)
         menu.findItem(R.id.action_add_bookmark).isVisible = isDirectory
+    }
+
+    /**
+     * Binds only the description line (modification time + size). Shared by the full bind and the
+     * directory-size partial payload so a size result re-renders just this text.
+     */
+    private fun bindDescription(holder: ViewHolder, file: FileItem) {
+        val isDirectory = file.attributes.isDirectory
+        val context = holder.nameText.context
+        val description = if (isDirectory) {
+            directorySizes[file.path]?.formatHumanReadable(context)
+        } else {
+            val attributes = file.attributes
+            val lastModificationTime = attributes.lastModifiedTime().toInstant()
+                .formatShort(context)
+            val size = attributes.fileSize.formatHumanReadable(context)
+            val descriptionSeparator = context.getString(R.string.file_item_description_separator)
+            listOf(lastModificationTime, size).joinToString(descriptionSeparator)
+        }
+        holder.descriptionText?.apply {
+            // In compact layout the row is single-line; hide the description entirely so the name
+            // is vertically centered.
+            isVisible = !isCompactLayout
+            text = description
+        }
     }
 
     /** Dispatches a popup-menu selection for the file currently bound to the holder. */
@@ -602,6 +621,9 @@ class FileListAdapter(
 
     companion object {
         private val PAYLOAD_STATE_CHANGED = Any()
+
+        /** Partial rebind: only the description text is refreshed, identity/selection untouched. */
+        private val PAYLOAD_DIRECTORY_SIZE_CHANGED = Any()
 
         private val CALLBACK = object : DiffUtil.ItemCallback<FileItem>() {
             override fun areItemsTheSame(oldItem: FileItem, newItem: FileItem): Boolean =
