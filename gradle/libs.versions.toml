@@ -39,7 +39,7 @@ advrecyclerview = "1.0.0"
 # SMBJ 0.12.0 broke anonymous authentication: https://github.com/hierynomus/smbj/issues/792 ,
 # and it's still an issue in 0.14.0 according to
 # https://github.com/hierynomus/smbj/issues/792#issuecomment-2548018378 .
-smbj = "0.11.5"
+smbj = "0.15.0"
 bouncycastle = "1.83"
 sshj = "0.40.0"
 speed-dial = "3.3.0"
