@@ -1,0 +1,167 @@
+# Version catalog: single source of truth for plugin and dependency versions.
+# Coordinates, versions, and exclusions are migrated verbatim from the
+# build.gradle files; behavior is unchanged.
+
+[versions]
+agp = "9.1.0"
+kotlin = "2.3.20"
+baselineprofile-plugin = "1.5.0"
+# 1.5.0 is listed in the Google Maven index but not actually published (404); 1.4.1 is the
+# newest resolvable version. The baselineprofile Gradle plugin stays at 1.5.0, which is the
+# line verified against AGP 9.1.
+androidx-benchmark = "1.4.1"
+desugar-jdk-libs = "2.1.5"
+kotlinx-coroutines = "1.10.2"
+androidx-activity = "1.13.0"
+androidx-appcompat = "1.7.1"
+androidx-core = "1.18.0"
+androidx-drawerlayout = "1.2.0"
+androidx-exifinterface = "1.4.2"
+androidx-fragment = "1.8.9"
+androidx-lifecycle = "2.10.0"
+androidx-preference = "1.2.1"
+androidx-recyclerview = "1.4.0"
+androidx-swiperefreshlayout = "1.2.0"
+androidx-media3 = "1.4.1"
+material = "1.13.0"
+dav4jvm = "2.1.4"
+photoview = "2.3.0"
+libsu = "5.2.2"
+smali = "2.5.2"
+antlr-runtime = "3.5.2"
+lsplant = "6.4"
+shadowhook = "2.0.0"
+androidsvg = "1.4"
+subsampling-scale-image-view = "3.10.0"
+drakeet-drawer = "1.0.3"
+materialshadowninepatch = "1.0.0"
+advrecyclerview = "1.0.0"
+# SMBJ 0.12.0 broke anonymous authentication: https://github.com/hierynomus/smbj/issues/792 ,
+# and it's still an issue in 0.14.0 according to
+# https://github.com/hierynomus/smbj/issues/792#issuecomment-2548018378 .
+smbj = "0.11.5"
+bouncycastle = "1.83"
+sshj = "0.40.0"
+speed-dial = "3.3.0"
+dcerpc = "0.12.13"
+guava = "33.5.0-android"
+listenablefuture = "9999.0-empty-to-avoid-conflict-with-guava"
+preferencex = "1.1.0"
+commons-net = "3.13.0"
+# LicensesDialog 2.2.0 pulls in androidx.webkit and uses setForceDark() instead of correctly
+# setting colors.
+licensesdialog = "2.1.0"
+# dev.chrisbanesinsetter:insetter:0.6.0 makes inset unstable when entering immersive.
+insetter = "0.3.1"
+simplemenu-preference = "1.0.3"
+shizuku = "13.1.5"
+jcifs-ng = "2.1.10"
+coil = "2.7.0"
+appiconloader = "1.5.0"
+fastscroll = "1.3.0"
+foregroundcompat = "1.0.2"
+libarchive = "1.1.6"
+libselinux = "2.1.1"
+retrofile = "1.2.0"
+systemuihelper = "1.0.0"
+ftpserver-core = "1.2.1"
+commons-compress = "1.27.1"
+xz = "1.10"
+nanohttpd = "2.3.1"
+# org.apache.mina:mina-core 2.1.4+ became incompatible before API 24 due to dependency on
+# StandardSocketOptions (DIRMINA-1123) and NetworkChannel.supportedOptions() (DIRMINA-1130).
+slf4j-android = "1.7.36"
+androidx-test-ext-junit = "1.3.0"
+uiautomator = "2.3.0"
+junit4 = "4.13.2"
+
+[libraries]
+# Buildscript classpath plugins (applied via `apply plugin:` in the modules, as before).
+android-gradle-plugin = { group = "com.android.tools.build", name = "gradle", version.ref = "agp" }
+kotlin-gradle-plugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
+baselineprofile-gradle-plugin = { group = "androidx.benchmark", name = "benchmark-baseline-profile-gradle-plugin", version.ref = "baselineprofile-plugin" }
+# :benchmark (macrobenchmark + baseline profile producer)
+benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version.ref = "androidx-benchmark" }
+androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidx-test-ext-junit" }
+androidx-test-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "uiautomator" }
+
+# :app — first-party/hook/native stack
+dav4jvm = { group = "com.github.bitfireAT", name = "dav4jvm", version.ref = "dav4jvm" }
+photoview = { group = "com.github.chrisbanes", name = "PhotoView", version.ref = "photoview" }
+libsu-service = { group = "com.github.topjohnwu.libsu", name = "service", version.ref = "libsu" }
+dexlib2 = { group = "org.smali", name = "dexlib2", version.ref = "smali" }
+baksmali = { group = "org.smali", name = "baksmali", version.ref = "smali" }
+smali = { group = "org.smali", name = "smali", version.ref = "smali" }
+antlr-runtime = { group = "org.antlr", name = "antlr-runtime", version.ref = "antlr-runtime" }
+lsplant-standalone = { group = "org.lsposed.lsplant", name = "lsplant-standalone", version.ref = "lsplant" }
+shadowhook = { group = "com.bytedance.android", name = "shadowhook", version.ref = "shadowhook" }
+
+# :app — language/toolchain
+desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugar-jdk-libs" }
+kotlin-stdlib-jdk8 = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib-jdk8", version.ref = "kotlin" }
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+
+# :app — AndroidX / Material
+androidx-activity-ktx = { group = "androidx.activity", name = "activity-ktx", version.ref = "androidx-activity" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "androidx-appcompat" }
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidx-core" }
+androidx-drawerlayout = { group = "androidx.drawerlayout", name = "drawerlayout", version.ref = "androidx-drawerlayout" }
+androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "androidx-exifinterface" }
+androidx-fragment-ktx = { group = "androidx.fragment", name = "fragment-ktx", version.ref = "androidx-fragment" }
+androidx-lifecycle-common-java8 = { group = "androidx.lifecycle", name = "lifecycle-common-java8", version.ref = "androidx-lifecycle" }
+androidx-lifecycle-livedata-ktx = { group = "androidx.lifecycle", name = "lifecycle-livedata-ktx", version.ref = "androidx-lifecycle" }
+androidx-lifecycle-process = { group = "androidx.lifecycle", name = "lifecycle-process", version.ref = "androidx-lifecycle" }
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "androidx-lifecycle" }
+androidx-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "androidx-lifecycle" }
+androidx-preference-ktx = { group = "androidx.preference", name = "preference-ktx", version.ref = "androidx-preference" }
+androidx-recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "androidx-recyclerview" }
+androidx-swiperefreshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version.ref = "androidx-swiperefreshlayout" }
+androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "androidx-media3" }
+androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "androidx-media3" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+
+# :app — third-party
+androidsvg-aar = { group = "com.caverock", name = "androidsvg-aar", version.ref = "androidsvg" }
+subsampling-scale-image-view = { group = "com.davemorrissey.labs", name = "subsampling-scale-image-view-androidx", version.ref = "subsampling-scale-image-view" }
+drakeet-drawer = { group = "com.drakeet.drawer", name = "drawer", version.ref = "drakeet-drawer" }
+materialshadowninepatch = { group = "com.h6ah4i.android.materialshadowninepatch", name = "materialshadowninepatch", version.ref = "materialshadowninepatch" }
+advrecyclerview = { group = "com.h6ah4i.android.widget.advrecyclerview", name = "advrecyclerview", version.ref = "advrecyclerview" }
+smbj = { group = "com.hierynomus", name = "smbj", version.ref = "smbj" }
+bouncycastle-bcprov-jdk15to18 = { group = "org.bouncycastle", name = "bcprov-jdk15to18", version.ref = "bouncycastle" }
+sshj = { group = "com.hierynomus", name = "sshj", version.ref = "sshj" }
+bouncycastle-bcpkix-jdk15to18 = { group = "org.bouncycastle", name = "bcpkix-jdk15to18", version.ref = "bouncycastle" }
+speed-dial = { group = "com.leinardi.android", name = "speed-dial", version.ref = "speed-dial" }
+dcerpc = { group = "com.rapid7.client", name = "dcerpc", version.ref = "dcerpc" }
+guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
+# Guava conflicts with com.google.guava:listenablefuture:1.0 pulled in by AndroidX Core
+listenablefuture = { group = "com.google.guava", name = "listenablefuture", version.ref = "listenablefuture" }
+preferencex = { group = "com.takisoft.preferencex", name = "preferencex", version.ref = "preferencex" }
+commons-net = { group = "commons-net", name = "commons-net", version.ref = "commons-net" }
+licensesdialog = { group = "de.psdev.licensesdialog", name = "licensesdialog", version.ref = "licensesdialog" }
+insetter-ktx = { group = "dev.chrisbanes", name = "insetter-ktx", version.ref = "insetter" }
+simplemenu-preference = { group = "dev.rikka.rikkax.preference", name = "simplemenu-preference", version.ref = "simplemenu-preference" }
+shizuku-api = { group = "dev.rikka.shizuku", name = "api", version.ref = "shizuku" }
+jcifs-ng = { group = "eu.agno3.jcifs", name = "jcifs-ng", version.ref = "jcifs-ng" }
+coil-bom = { group = "io.coil-kt", name = "coil-bom", version.ref = "coil" }
+coil = { group = "io.coil-kt", name = "coil" }
+coil-gif = { group = "io.coil-kt", name = "coil-gif" }
+coil-svg = { group = "io.coil-kt", name = "coil-svg" }
+coil-video = { group = "io.coil-kt", name = "coil-video" }
+appiconloader = { group = "me.zhanghai.android.appiconloader", name = "appiconloader", version.ref = "appiconloader" }
+fastscroll = { group = "me.zhanghai.android.fastscroll", name = "library", version.ref = "fastscroll" }
+foregroundcompat = { group = "me.zhanghai.android.foregroundcompat", name = "library", version.ref = "foregroundcompat" }
+libarchive = { group = "me.zhanghai.android.libarchive", name = "library", version.ref = "libarchive" }
+libselinux = { group = "me.zhanghai.android.libselinux", name = "library", version.ref = "libselinux" }
+retrofile = { group = "me.zhanghai.android.retrofile", name = "library", version.ref = "retrofile" }
+systemuihelper = { group = "me.zhanghai.android.systemuihelper", name = "library", version.ref = "systemuihelper" }
+ftpserver-core = { group = "org.apache.ftpserver", name = "ftpserver-core", version.ref = "ftpserver-core" }
+commons-compress = { group = "org.apache.commons", name = "commons-compress", version.ref = "commons-compress" }
+xz = { group = "org.tukaani", name = "xz", version.ref = "xz" }
+nanohttpd = { group = "org.nanohttpd", name = "nanohttpd", version.ref = "nanohttpd" }
+mina-core = { group = "org.apache.mina", name = "mina-core", version = { strictly = "2.1.3" } }
+slf4j-android = { group = "org.slf4j", name = "slf4j-android", version.ref = "slf4j-android" }
+
+# Test-only dependencies for pure JVM unit tests (JUnit 4)
+junit4 = { group = "junit", name = "junit", version.ref = "junit4" }
+

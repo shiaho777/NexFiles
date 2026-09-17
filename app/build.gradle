@@ -9,7 +9,12 @@ apply plugin: 'kotlin-parcelize'
 // and packages it into the APK for install-time AOT compilation of hot startup/list paths.
 apply plugin: 'androidx.baselineprofile'
 
-apply from: '../signing.gradle'
+// CI explicitly opts out of signing; do not load credentials or prompt for them in that mode.
+// Normal builds retain the existing signing.gradle behavior.
+def unsignedRelease = providers.gradleProperty('unsignedRelease').map { it.toBoolean() }.getOrElse(false)
+if (!unsignedRelease) {
+    apply from: '../signing.gradle'
+}
 
 android {
     namespace 'me.zhanghai.android.files'
@@ -78,7 +83,9 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+            if (!unsignedRelease) {
+                signingConfig signingConfigs.release
+            }
         }
     }
     packagingOptions {
@@ -137,22 +144,22 @@ dependencies {
     // Embeds the baseline profile that :benchmark records on a device (generateBaselineProfile).
     baselineProfile project(':benchmark')
     // We need https://github.com/bitfireAT/dav4jvm/commit/c1bc14348831bcdb00f3a6eec4859b81c7dc3728
-    implementation('com.github.bitfireAT:dav4jvm:2.1.4') {
+    implementation(libs.dav4jvm) {
         exclude group: 'org.ogce', module: 'xpp3'
     }
-    implementation 'com.github.chrisbanes:PhotoView:2.3.0'
-    implementation 'com.github.topjohnwu.libsu:service:5.2.2'
+    implementation libs.photoview
+    implementation libs.libsu.service
     // dexlib2 for the DEX editor/viewer: parses DEX bytecode into a mutable object model and
     // writes it back with checksums/signature recomputed. BSD-licensed, pure Java, the same
     // library smali/baksmali are built on. Published on Maven Central as org.smali:dexlib2, so
     // we use that (no JitPack round-trip). Guava comes in transitively and is required by
     // dexlib2's immutable collections; we don't exclude it.
-    implementation 'org.smali:dexlib2:2.5.2'
+    implementation libs.dexlib2
     // smali + baksmali for the smali source-level editor: baksmali disassembles a ClassDef into
     // human-readable smali text, and smali assembles edited text back into a ClassDef. Same
     // 2.5.2 version as dexlib2 to guarantee API compatibility; both are on Maven Central.
-    implementation 'org.smali:baksmali:2.5.2'
-    implementation('org.smali:smali:2.5.2') {
+    implementation libs.baksmali
+    implementation(libs.smali) {
         // smali's POM drags in the full ANTLR 3 tool (org.antlr:antlr), whose codegen templates
         // (.stg grammars for C/C++/C#/ObjC/Delphi/Python...) and tool classes are only needed to
         // *generate* parsers from grammars. The parser smali ships is pre-generated and uses only
@@ -167,133 +174,123 @@ dependencies {
     // smali's POM declares antlr-runtime at runtime scope only; the compile classpath used to get
     // org.antlr.runtime.tree.TreeParser (supertype of SmaliTreeWalker, which DexSmaliBridge
     // touches) from the full tool jar above. Declare it explicitly so compilation still sees it.
-    implementation 'org.antlr:antlr-runtime:3.5.2'
+    implementation libs.antlr.runtime
     // lsplant (LSPosed's ART method-hook core) for the runtime hook feature. LGPL-3.0, the
     // library that actually rewrites ArtMethod entry points to install Java method hooks. We
     // pull the standalone variant — it is a pure-native prefab library (C++ header + .so), so
     // our own C++ JNI bridge links against it directly. The inline-hooker backend (the one
     // piece lsplant delegates to its host) is provided by our nexhook bridge.
-    implementation 'org.lsposed.lsplant:lsplant-standalone:6.4'
+    implementation libs.lsplant.standalone
     // ShadowHook (ByteDance's production-grade inline hook library) as the inline-hook backend
     // for lsplant. lsplant delegates native code patching to its host; ShadowHook implements
     // that with a battle-tested arm64/arm32 trampoline installer. MIT-licensed, prefab, so our
     // nexhook.cpp links it directly. This closes the one gap that made lsplant::Init fail.
     // 2.0.1 ships AAR metadata requiring minCompileSdk 37 (AGP 9.1.0 caps at 36); 2.0.0 has
     // minCompileSdk 1 and the same inline-hook backend API we use.
-    implementation 'com.bytedance.android:shadowhook:2.0.0'
+    implementation libs.shadowhook
 }
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
 
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    coreLibraryDesugaring libs.desugar.jdk.libs
 
     // kotlinx-coroutines-android depends on kotlin-stdlib-jdk8
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
-    def kotlinx_coroutines_version = '1.10.2'
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$kotlinx_coroutines_version"
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinx_coroutines_version"
+    implementation libs.kotlin.stdlib.jdk8
+    implementation libs.kotlinx.coroutines.android
+    implementation libs.kotlinx.coroutines.core
 
-    implementation 'androidx.activity:activity-ktx:1.13.0'
-    implementation 'androidx.appcompat:appcompat:1.7.1'
-    implementation 'androidx.core:core-ktx:1.18.0'
-    implementation 'androidx.drawerlayout:drawerlayout:1.2.0'
-    implementation 'androidx.exifinterface:exifinterface:1.4.2'
-    implementation 'androidx.fragment:fragment-ktx:1.8.9'
-    def androidx_lifecycle_version = '2.10.0'
-    implementation "androidx.lifecycle:lifecycle-common-java8:$androidx_lifecycle_version"
-    implementation "androidx.lifecycle:lifecycle-livedata-ktx:$androidx_lifecycle_version"
-    implementation "androidx.lifecycle:lifecycle-process:$androidx_lifecycle_version"
-    implementation "androidx.lifecycle:lifecycle-runtime-ktx:$androidx_lifecycle_version"
-    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$androidx_lifecycle_version"
-    implementation 'androidx.preference:preference-ktx:1.2.1'
-    implementation 'androidx.recyclerview:recyclerview:1.4.0'
-    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.2.0'
-    implementation 'com.google.android.material:material:1.13.0'
+    implementation libs.androidx.activity.ktx
+    implementation libs.androidx.appcompat
+    implementation libs.androidx.core.ktx
+    implementation libs.androidx.drawerlayout
+    implementation libs.androidx.exifinterface
+    implementation libs.androidx.fragment.ktx
+    implementation libs.androidx.lifecycle.common.java8
+    implementation libs.androidx.lifecycle.livedata.ktx
+    implementation libs.androidx.lifecycle.process
+    implementation libs.androidx.lifecycle.runtime.ktx
+    implementation libs.androidx.lifecycle.viewmodel.ktx
+    implementation libs.androidx.preference.ktx
+    implementation libs.androidx.recyclerview
+    implementation libs.androidx.swiperefreshlayout
+    implementation libs.material
 
-    implementation 'com.caverock:androidsvg-aar:1.4'
-    implementation 'com.davemorrissey.labs:subsampling-scale-image-view-androidx:3.10.0'
-    implementation 'com.drakeet.drawer:drawer:1.0.3'
-    implementation 'com.h6ah4i.android.materialshadowninepatch:materialshadowninepatch:1.0.0'
-    implementation 'com.h6ah4i.android.widget.advrecyclerview:advrecyclerview:1.0.0'
-    // SMBJ 0.12.0 broke anonymous authentication: https://github.com/hierynomus/smbj/issues/792 ,
-    // and it's still an issue in 0.14.0 according to
-    // https://github.com/hierynomus/smbj/issues/792#issuecomment-2548018378 .
+    implementation libs.androidsvg.aar
+    implementation libs.subsampling.scale.image.view
+    implementation libs.drakeet.drawer
+    implementation libs.materialshadowninepatch
+    implementation libs.advrecyclerview
     //noinspection NewerVersionAvailable
-    implementation ('com.hierynomus:smbj:0.11.5') {
+    implementation(libs.smbj) {
         // org.bouncycastle:bcprov-jdk15on uses bytecode version unsupported by Jetifier, so use
         // org.bouncycastle:bcprov-jdk15to18 instead.
         exclude group: 'org.bouncycastle', module: 'bcprov-jdk15on'
     }
-    def bouncy_castle_version = '1.83'
-    implementation "org.bouncycastle:bcprov-jdk15to18:$bouncy_castle_version"
-    implementation ('com.hierynomus:sshj:0.40.0') {
+    implementation libs.bouncycastle.bcprov.jdk15to18
+    implementation(libs.sshj) {
         exclude group: 'org.bouncycastle', module: 'bcprov-jdk18on'
         exclude group: 'org.bouncycastle', module: 'bcpkix-jdk18on'
     }
-    implementation "org.bouncycastle:bcpkix-jdk15to18:$bouncy_castle_version"
-    implementation 'com.leinardi.android:speed-dial:3.3.0'
-    implementation ('com.rapid7.client:dcerpc:0.12.13') {
+    implementation libs.bouncycastle.bcpkix.jdk15to18
+    implementation libs.speed.dial
+    implementation(libs.dcerpc) {
         // SMBJ-RPC depends on the JRE flavor of Guava which targets Java 8.
         exclude group: 'com.google.guava', module: 'guava'
         // Prevent promotion of SMBJ version to 0.12.2.
         exclude group: 'com.hierynomus', module: 'smbj'
         exclude group: 'org.bouncycastle', module: 'bcprov-jdk18on'
     }
-    implementation 'com.google.guava:guava:33.5.0-android'
-    // Guava conflicts with com.google.guava:listenablefuture:1.0 pulled in by AndroidX Core
-    implementation 'com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava'
-    implementation 'com.takisoft.preferencex:preferencex:1.1.0'
-    implementation 'commons-net:commons-net:3.13.0'
-    // LicensesDialog 2.2.0 pulls in androidx.webkit and uses setForceDark() instead of correctly
-    // setting colors.
+    implementation libs.guava
+    implementation libs.listenablefuture
+    implementation libs.preferencex
+    implementation libs.commons.net
     //noinspection NewerVersionAvailable
-    implementation 'de.psdev.licensesdialog:licensesdialog:2.1.0'
-    // dev.chrisbanesinsetter:insetter:0.6.0 makes inset unstable when entering immersive.
-    implementation 'dev.chrisbanes:insetter-ktx:0.3.1'
-    implementation 'dev.rikka.rikkax.preference:simplemenu-preference:1.0.3'
-    implementation 'dev.rikka.shizuku:api:13.1.5'
-    implementation ('eu.agno3.jcifs:jcifs-ng:2.1.10') {
+    implementation libs.licensesdialog
+    implementation libs.insetter.ktx
+    implementation libs.simplemenu.preference
+    implementation libs.shizuku.api
+    implementation(libs.jcifs.ng) {
         exclude group: 'org.bouncycastle', module: 'bcprov-jdk18on'
     }
-    implementation platform('io.coil-kt:coil-bom:2.7.0')
-    implementation 'io.coil-kt:coil'
-    implementation 'io.coil-kt:coil-gif'
-    implementation 'io.coil-kt:coil-svg'
-    implementation 'io.coil-kt:coil-video'
-    implementation 'me.zhanghai.android.appiconloader:appiconloader:1.5.0'
-    implementation 'me.zhanghai.android.fastscroll:library:1.3.0'
-    implementation 'me.zhanghai.android.foregroundcompat:library:1.0.2'
-    implementation 'me.zhanghai.android.libarchive:library:1.1.6'
-    implementation 'me.zhanghai.android.libselinux:library:2.1.1'
-    implementation 'me.zhanghai.android.retrofile:library:1.2.0'
-    implementation 'me.zhanghai.android.systemuihelper:library:1.0.0'
-    implementation 'org.apache.ftpserver:ftpserver-core:1.2.1'
+    implementation platform(libs.coil.bom)
+    implementation libs.coil
+    implementation libs.coil.gif
+    implementation libs.coil.svg
+    implementation libs.coil.video
+    implementation libs.appiconloader
+    implementation libs.fastscroll
+    implementation libs.foregroundcompat
+    implementation libs.libarchive
+    implementation libs.libselinux
+    implementation libs.retrofile
+    implementation libs.systemuihelper
+    implementation libs.ftpserver.core
     // tar.gz extraction for the terminal rootfs downloads. Apache 2.0, handles pax/GNU/ustar
     // variants that hand-writing a tar reader would get wrong on real-world rootfs archives.
-    implementation 'org.apache.commons:commons-compress:1.27.1'
+    implementation libs.commons.compress
     // XZ for Java, the decompressor commons-compress delegates to for .tar.xz streams. It is an
     // optional compileOnly dependency of commons-compress, so without it here the release R8
     // build fails on the missing org.tukaani.xz classes — and at runtime the Debian rootfs
     // (a .tar.xz) would crash RootfsManager with NoClassDefFoundError. Public domain, pure Java.
-    implementation 'org.tukaani:xz:1.10'
+    implementation libs.xz
     // Media3 (ExoPlayer successor) for the built-in media viewer. Replaces the system VideoView:
     // better format coverage, real error handling, and proper lifecycle/resume support. We pull
     // core + UI (PlayerView with built-in controls); FFmpeg extension can be added later for
     // formats the platform decoders don't cover.
-    implementation 'androidx.media3:media3-exoplayer:1.4.1'
-    implementation 'androidx.media3:media3-ui:1.4.1'
+    implementation libs.androidx.media3.exoplayer
+    implementation libs.androidx.media3.ui
     // Embedded HTTP server backing the WebDAV server feature. Lightweight (~50KB), no transitive
     // deps, and intentionally used without websockets/main module.
-    implementation 'org.nanohttpd:nanohttpd:2.3.1'
+    implementation libs.nanohttpd
     // This is a dependency of org.apache.ftpserver:ftpserver-core but org.apache.mina:mina-core
     // 2.1.4+ became incompatible before API 24 due to dependency on StandardSocketOptions
     // (DIRMINA-1123) and NetworkChannel.supportedOptions() (DIRMINA-1130).
-    implementation ('org.apache.mina:mina-core') {
-        version {
-            strictly '2.1.3'
-        }
-    }
+    // The catalog retains the strict 2.1.3 constraint (not just a preferred version).
+    implementation libs.mina.core
     // Also a dependency of jCIFS-NG.
-    implementation 'org.slf4j:slf4j-android:1.7.36'
+    implementation libs.slf4j.android
+
+    // Pure JVM unit tests (JUnit 4).
+    testImplementation libs.junit4
 }
