@@ -27,7 +27,7 @@ jobs:
         distribution: 'temurin'
         java-version: '21'
     - name: Set up Gradle
-      uses: gradle/actions/setup-gradle@v4
+      uses: gradle/actions/setup-gradle@v6
     - name: Run JVM unit tests
       run: ./gradlew -PunsignedRelease=true :app:testDebugUnitTest --stacktrace
     - name: Run full lint
@@ -75,7 +75,7 @@ jobs:
         distribution: 'temurin'
         java-version: '21'
     - name: Set up Gradle
-      uses: gradle/actions/setup-gradle@v4
+      uses: gradle/actions/setup-gradle@v6
     - name: Assemble unsigned release APK
       run: ./gradlew -PunsignedRelease=true :app:assembleRelease --stacktrace
     - name: Upload release mapping
