@@ -39,7 +39,7 @@ jobs:
       run: ./gradlew -PunsignedRelease=true :app:assembleDebug --stacktrace
     - name: Upload test and lint reports
       if: ${{ always() }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: test-and-lint-reports
         path: |
@@ -51,7 +51,7 @@ jobs:
         if-no-files-found: warn
     - name: Upload debug APK
       if: ${{ !cancelled() }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: app-debug
         path: app/build/outputs/apk/debug/*.apk
@@ -81,14 +81,14 @@ jobs:
     - name: Upload release mapping
       # Preserve any R8 output even if a later release task fails.
       if: ${{ always() }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: release-mapping-${{ github.sha }}
         path: app/build/outputs/mapping/release/
         retention-days: 30
         if-no-files-found: error
     - name: Upload unsigned release APK
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: app-release-unsigned-${{ github.sha }}
         path: app/build/outputs/apk/release/*-unsigned.apk
