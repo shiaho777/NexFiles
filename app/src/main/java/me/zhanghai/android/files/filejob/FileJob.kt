@@ -13,6 +13,9 @@ import java.util.Random
 abstract class FileJob {
     val id = Random().nextInt()
 
+    /** Called before the job ever runs; default jobs have no pre-start cancellation path. */
+    open fun cancelBeforeStart() {}
+
     internal lateinit var service: FileJobService
         private set
 
