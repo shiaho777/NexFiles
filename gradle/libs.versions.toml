@@ -9,7 +9,7 @@ baselineprofile-plugin = "1.5.0"
 # 1.5.0 is listed in the Google Maven index but not actually published (404); 1.4.1 is the
 # newest resolvable version. The baselineprofile Gradle plugin stays at 1.5.0, which is the
 # line verified against AGP 9.1.
-androidx-benchmark = "1.4.1"
+androidx-benchmark = "1.5.0"
 desugar-jdk-libs = "2.1.5"
 kotlinx-coroutines = "1.10.2"
 androidx-activity = "1.13.0"
