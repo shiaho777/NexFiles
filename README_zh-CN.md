@@ -34,12 +34,18 @@ Material Files 是一个出色的白纸起点。NexFiles 把它扩展成一件"�
   hook 它的方法。无需 root、无需 debuggable、不碰 SELinux——目标崩溃只崩沙箱。另保留 ptrace 注入作为 root 降级路径。见 [沙箱 hook 方案](#沙箱-hook-方案)。
 - **内置终端** —— 真 PTY（native `forkpty`）+ VT100 模拟器，proot 运行 Alpine/Debian rootfs，并有以 shell UID 运行的 Shizuku 路径。
 - **APK 工具链** —— 签名查看（v1/v2/v3/v3.1 方案 + X.509 证书详情与指纹）、APK 签名（v1/v2/v3）、签名剥离、分包安装（`.apks`/`.xapk`/`.apkm`）、已安装应用提取。
+
+  > **安全说明：** 签名功能内置一个**默认签名者**（密钥位于
+  > `app/src/main/res/raw/nexfiles_default_keystore`，密码记录在
+  > `DefaultSignerProvider.kt`）。它的存在是为了让你不提供自己的密钥也能给重打包的 APK
+  > 签名。它是刻意公开的——任何人都用它签名——因此"使用 NexFiles 默认签名者签名"的 APK
+  > 不能证明其来源。对你关心的发布版本，请用自己的密钥签名，并与你公布的指纹比对。
 - **深度查看与编辑** —— 支持文件内查找的文本编辑器、十六进制编辑器、AXML/ARSC 检视器、DEX 浏览/编辑（字符串池、基于 dexlib2 的 const-string 补丁）、图片与媒体查看器。
 - **进阶文件管理** —— 正则/通配符 + 类型/大小/时间过滤的递归搜索、压缩包内编辑（copy-on-write 覆盖层）、回收站、批量校验和（MD5/SHA-1/SHA-256）、批量重命名、双窗格布局、对外共享文件的 FTP 与 WebDAV 服务端。
 - **性能工程** —— 五轮有文档记录的优化，包括修复本地文件系统上 DiffUtil 相等性语义从未真正生效的问题，以及后台异步列表 differ。在此之上，APK 内还随附设备实录的**基线 profile**（见 `benchmark` 模块），ART 会在安装期就对启动与文件列表路径做 AOT 编译，而不是等真实使用时再 JIT。
 
 <p align="center">
-  <img src="docs/assets/stats.svg" alt="统计卡片：76.0k 行 Kotlin（779 个文件）、11 个文件系统 provider、2,615 行 JNI C/C++、32 个 AIDL 接口、provider 24.7k 行、hook 2,556 行、viewer 6,004 行、terminal 1,867 行" width="720">
+  <img src="docs/assets/stats.svg" alt="统计卡片：79.3k 行 Kotlin（793 个文件）、11 个文件系统 provider、2,615 行 JNI C/C++、32 个 AIDL 接口、provider 24.9k 行、hook 2,556 行、viewer 7,185 行、terminal 2,526 行" width="720">
 </p>
 
 ## 预览
