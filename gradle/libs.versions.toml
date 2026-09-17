@@ -66,7 +66,7 @@ retrofile = "1.2.0"
 systemuihelper = "1.0.0"
 ftpserver-core = "1.2.1"
 commons-compress = "1.27.1"
-xz = "1.10"
+xz = "1.12"
 nanohttpd = "2.3.1"
 # org.apache.mina:mina-core 2.1.4+ became incompatible before API 24 due to dependency on
 # StandardSocketOptions (DIRMINA-1123) and NetworkChannel.supportedOptions() (DIRMINA-1130).
