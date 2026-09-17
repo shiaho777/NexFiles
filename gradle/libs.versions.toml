@@ -11,7 +11,7 @@ baselineprofile-plugin = "1.5.0"
 # line verified against AGP 9.1.
 androidx-benchmark = "1.4.1"
 desugar-jdk-libs = "2.1.5"
-kotlinx-coroutines = "1.10.2"
+kotlinx-coroutines = "1.11.0"
 androidx-activity = "1.13.0"
 androidx-appcompat = "1.7.1"
 androidx-core = "1.18.0"
