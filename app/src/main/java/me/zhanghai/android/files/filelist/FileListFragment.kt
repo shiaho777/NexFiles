@@ -450,10 +450,12 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
             (requireActivity() as FileListFragmentHost).invalidateOptionsMenu()
         }
         // Push computed directory sizes into the adapter so folders show their true recursive
-        // usage instead of the placeholder entry size. The adapter rebinds only the items whose
-        // size changed, so incremental updates don't churn the whole list.
-        DirectorySizeCalculator.sizes.observe(viewLifecycleOwner) { sizes ->
-            adapter.updateDirectorySizes(sizes)
+        // usage instead of the placeholder entry size. This pane's ViewModel owns its sizes and
+        // generations, so the other pane in dual-pane mode never sees or cancels them. Only the
+        // currently visible positions are rebound, and the update runs from a posted runnable so
+        // it never fires synchronous notifications during binding or layout.
+        viewModel.directorySizes.observe(viewLifecycleOwner) {
+            scheduleDirectorySizeViewportUpdate()
         }
         viewModel.breadcrumbLiveData.observe(viewLifecycleOwner) {
             binding.breadcrumbLayout.setData(it)
@@ -477,6 +479,91 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         viewModel.fileListLiveData.observe(viewLifecycleOwner) { onFileListChanged(it) }
         Settings.FILE_LIST_SHOW_HIDDEN_FILES.observe(viewLifecycleOwner) {
             onShowHiddenFilesChanged(it)
+        }
+        binding.recyclerView.addOnScrollListener(directorySizeScrollListener)
+    }
+
+    // Demand is derived from the real viewport (layout manager children, centers first) so only
+    // folders the user can actually see get their subtrees walked. All mutations are posted: no
+    // RecyclerView notification ever happens synchronously inside binding, scroll or layout.
+    private val directorySizeScrollListener = object : RecyclerView.OnScrollListener() {
+        override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+            if (dx != 0 || dy != 0) {
+                scheduleDirectorySizeViewportUpdate()
+            }
+        }
+
+        override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+            if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                scheduleDirectorySizeViewportUpdate()
+            }
+        }
+    }
+
+    private var isDirectorySizeViewportUpdateScheduled = false
+
+    private fun scheduleDirectorySizeViewportUpdate() {
+        if (!::binding.isInitialized || isDirectorySizeViewportUpdateScheduled) {
+            return
+        }
+        isDirectorySizeViewportUpdateScheduled = true
+        binding.recyclerView.post(directorySizeViewportUpdateRunnable)
+    }
+
+    /** Visible adapter positions sorted so the folders nearest the viewport center come first. */
+    private fun currentVisiblePositions(): List<Int>? {
+        if (!::binding.isInitialized || !isAdded) {
+            return null
+        }
+        val recyclerView = binding.recyclerView
+        val layoutManager = recyclerView.layoutManager ?: return null
+        val height = recyclerView.height
+        if (height <= 0) {
+            return null
+        }
+        val centerY = recyclerView.paddingTop + height / 2
+        data class VisiblePosition(val position: Int, val distanceToCenter: Int)
+        val positions = mutableListOf<VisiblePosition>()
+        for (index in 0 until layoutManager.childCount) {
+            val child = layoutManager.getChildAt(index) ?: continue
+            val params = child.layoutParams as? RecyclerView.LayoutParams ?: continue
+            val position = params.viewAdapterPosition
+            if (position == RecyclerView.NO_POSITION) {
+                continue
+            }
+            positions.add(
+                VisiblePosition(position, Math.abs((child.top + child.bottom) / 2 - centerY))
+            )
+        }
+        return positions.sortedBy { it.distanceToCenter }.map { it.position }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // Stop scrolling-driven demand immediately; the ViewModel may outlive this view.
+        if (::binding.isInitialized) {
+            binding.recyclerView.clearOnScrollListeners()
+            binding.recyclerView.removeCallbacks(directorySizeViewportUpdateRunnable)
+        }
+        isDirectorySizeViewportUpdateScheduled = false
+        // Detach this pane from the calculator: in-flight walks for the old path are cancelled,
+        // and the adapter stops observing sizes so a new view binding cannot receive stale data.
+        viewModel.releaseDirectorySizes()
+        adapter.clearDirectorySizes()
+    }
+
+    private val directorySizeViewportUpdateRunnable = Runnable {
+        isDirectorySizeViewportUpdateScheduled = false
+        if (!::binding.isInitialized || !isAdded) {
+            return@Runnable
+        }
+        val visiblePositions = currentVisiblePositions() ?: return@Runnable
+        viewModel.directorySizes.valueCompat.let {
+            adapter.updateDirectorySizes(it, visiblePositions)
+        }
+        val demand = adapter.collectDirectorySizeDemand(visiblePositions)
+        if (demand.isNotEmpty()) {
+            viewModel.requestDirectorySizes(demand)
         }
     }
 
@@ -942,6 +1029,9 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
             files, viewModel.searchState.isSearching,
             viewModel.searchState.options.takeIf { viewModel.searchState.isSearching }
         )
+        // A new list means a new viewport; schedule a posted demand update so visible folders
+        // (and only those) get their recursive sizes computed.
+        scheduleDirectorySizeViewportUpdate()
     }
 
     private fun updateShowHiddenFilesMenuItem() {

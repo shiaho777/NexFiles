@@ -27,6 +27,13 @@ import java.io.Closeable
 
 // TODO: Use SavedStateHandle to save state.
 class FileListViewModel : ViewModel() {
+    private val directorySizeOwner = DirectorySizeCalculator.Owner()
+    val directorySizes = directorySizeOwner.sizes
+
+    fun requestDirectorySizes(directories: List<Path>) = directorySizeOwner.request(directories)
+
+    fun releaseDirectorySizes() = directorySizeOwner.reset()
+
     private val trailLiveData = TrailLiveData()
     val hasTrail: Boolean
         get() = trailLiveData.value != null
@@ -185,8 +192,9 @@ class FileListViewModel : ViewModel() {
         if (path.isArchivePath) {
             path.archiveRefresh()
         }
-        // Drop cached directory sizes so they recompute against the refreshed listing.
-        DirectorySizeCalculator.clear()
+        // Refresh only the subtree of the current directory; stale results cannot be published
+        // into the new generation, and the other pane's cache is untouched.
+        directorySizeOwner.invalidate(currentPath)
         _fileListLiveData.reload()
     }
 
@@ -349,6 +357,7 @@ class FileListViewModel : ViewModel() {
 
     override fun onCleared() {
         _fileListLiveData.close()
+        directorySizeOwner.close()
     }
 
     companion object {
@@ -389,17 +398,6 @@ class FileListViewModel : ViewModel() {
                 // Cache the completed traversal so refine() can narrow it without re-walking.
                 if (liveData is SearchFileListLiveData && it is Success) {
                     baseSearchResult = it.value
-                }
-                // Kick off async directory-size computation for any directories in the new list,
-                // so folders show their true recursive size once computed.
-                if (it is Success) {
-                    val directories = it.value.asSequence()
-                        .filter { file -> file.attributes.isDirectory }
-                        .map { file -> file.path }
-                        .toList()
-                    if (directories.isNotEmpty()) {
-                        DirectorySizeCalculator.requestSizes(directories)
-                    }
                 }
                 value = it
             }
